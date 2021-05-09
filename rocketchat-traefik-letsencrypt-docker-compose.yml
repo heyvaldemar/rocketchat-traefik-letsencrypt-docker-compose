@@ -1,0 +1,135 @@
+# Rocket.Chat with Let's Encrypt in a Docker Compose
+
+# Vladimir Mikhalev
+# callvaldemar@gmail.com
+# www.heyvaldemar.com
+
+# Install the Docker Engine by following the official guide: https://docs.docker.com/engine/install/
+# Install the Docker Compose by following the official guide: https://docs.docker.com/compose/install/
+
+# Deploy Rocket.Chat server with a Docker Compose using the command:
+# docker-compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketchat up -d
+
+volumes:
+  rocketchat-uploads:
+  rocketchat-mongo:
+  rocketchat-mongo-dump:
+  traefik-certificates:
+
+services:
+  mongo:
+    image: mongo:4.0
+    command: mongod --smallfiles --oplogSize 128 --replSet rs0 --storageEngine=mmapv1
+    volumes:
+     - rocketchat-mongo:/data/db
+     - rocketchat-mongo-dump:/dump
+    restart: unless-stopped
+
+  mongo-init-replica:
+    image: mongo:4.0
+    command: >
+      bash -c
+        "for i in `seq 1 30`; do
+          mongo mongo/rocketchat --eval \"
+            rs.initiate({
+              _id: 'rs0',
+              members: [ { _id: 0, host: 'localhost:27017' } ]})\" &&
+          s=$$? && break || s=$$?;
+          echo \"Tried $$i times. Waiting 5 secs...\";
+          sleep 5;
+        done; (exit $$s)"
+    depends_on:
+      - mongo
+
+  rocketchat:
+    # Image tag (replace with yours)
+    image: rocket.chat:3.14
+    command: >
+      bash -c
+        "for i in `seq 1 30`; do
+          node main.js &&
+          s=$$? && break || s=$$?;
+          echo \"Tried $$i times. Waiting 5 secs...\";
+          sleep 5;
+        done; (exit $$s)"
+    volumes:
+      - rocketchat-uploads:/app/uploads
+    environment:
+      PORT: 3000
+      # Rocket.Chat URL (replace with yours)
+      ROOT_URL: https://rocketchat.heyvaldemar.net
+      MONGO_URL: mongodb://mongo:27017/rocketchat
+      MONGO_OPLOG_URL: mongodb://mongo:27017/local
+      Accounts_UseDNSDomainCheck: 'false'
+    labels:
+      - "traefik.enable=true"
+      # Rocket.Chat URL (replace with yours)
+      - "traefik.http.routers.rocketchat.rule=Host(`rocketchat.heyvaldemar.net`)"
+      - "traefik.http.routers.rocketchat.service=rocketchat"
+      - "traefik.http.routers.rocketchat.entrypoints=websecure"
+      - "traefik.http.services.rocketchat.loadbalancer.server.port=3000"
+      - "traefik.http.routers.rocketchat.tls=true"
+      - "traefik.http.routers.rocketchat.tls.certresolver=letsencrypt"
+      - "traefik.http.services.rocketchat.loadbalancer.passhostheader=true"
+      - "traefik.http.routers.rocketchat.middlewares=compresstraefik"
+      - "traefik.http.middlewares.compresstraefik.compress=true"
+    restart: unless-stopped
+    depends_on:
+      - mongo
+
+  traefik:
+    # Image tag (replace with yours)
+    image: traefik:2.4
+    command:
+      - "--log.level=WARN"
+      - "--accesslog=true"
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--ping=true"
+      - "--ping.entrypoint=ping"
+      - "--entryPoints.ping.address=:8082"
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+      - "--providers.docker=true"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.exposedByDefault=false"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      # Email for Let's Encrypt (replace with yours)
+      - "--certificatesresolvers.letsencrypt.acme.email=callvaldemar@gmail.com"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
+      - "--global.checkNewVersion=true"
+      - "--global.sendAnonymousUsage=false"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - traefik-certificates:/etc/traefik/acme
+    ports:
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      test: ["CMD", "wget", "http://localhost:8082/ping","--spider"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      - "traefik.enable=true"
+      # Traefik URL (replace with yours)
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.rocketchat.heyvaldemar.net`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.services.dashboard.loadbalancer.passhostheader=true"
+      - "traefik.http.routers.dashboard.middlewares=authtraefik"
+      # Basic Authentication for Traefik Dashboard
+      # Username: traefikadmin (replace with yours)
+      # Passwords must be encoded using MD5, SHA1, or BCrypt
+      - "traefik.http.middlewares.authtraefik.basicauth.users=traefikadmin:$$2y$$10$$sMzJfirKC75x/hVpiINeZOiSm.Jkity9cn4KwNkRvO7hSQVFc5FLO"
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+    restart: unless-stopped
