@@ -43,7 +43,7 @@ services:
 
   rocketchat:
     # Image tag (replace with yours)
-    image: rocket.chat:3.14
+    image: rocket.chat:3.17
     command: >
       bash -c
         "for i in `seq 1 30`; do
@@ -79,7 +79,7 @@ services:
 
   traefik:
     # Image tag (replace with yours)
-    image: traefik:2.4
+    image: traefik:2.5
     command:
       - "--log.level=WARN"
       - "--accesslog=true"
