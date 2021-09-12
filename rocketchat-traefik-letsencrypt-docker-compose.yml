@@ -23,6 +23,12 @@ services:
     volumes:
      - rocketchat-mongo:/data/db
      - rocketchat-mongo-dump:/dump
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongo mongo:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     restart: unless-stopped
 
   mongo-init-replica:
@@ -61,6 +67,33 @@ services:
       MONGO_URL: mongodb://mongo:27017/rocketchat
       MONGO_OPLOG_URL: mongodb://mongo:27017/local
       Accounts_UseDNSDomainCheck: 'false'
+    healthcheck:
+      test: >
+         /usr/local/bin/node -e '
+         const http = require("http");
+         const options = {
+           host: "localhost",
+           port: 3000,
+           path: "/api/info",
+           timeout: 2000
+         };
+         const healthCheck = http.request(options, (res) => {
+           console.log(`HEALTHCHECK STATUS: $${res.statusCode}`);
+           if (res.statusCode == 200) {
+             process.exit(0);
+           } else {
+             process.exit(1);
+           }
+         });
+         healthCheck.on("error", function (err) {
+           console.error("ERROR");
+           process.exit(1);
+         });
+         healthCheck.end();'
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     labels:
       - "traefik.enable=true"
       # Rocket.Chat URL (replace with yours)
@@ -75,7 +108,10 @@ services:
       - "traefik.http.middlewares.compresstraefik.compress=true"
     restart: unless-stopped
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
+      traefik:
+        condition: service_healthy
 
   traefik:
     # Image tag (replace with yours)
