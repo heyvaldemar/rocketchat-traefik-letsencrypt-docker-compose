@@ -8,64 +8,48 @@
 # Install the Docker Compose by following the official guide: https://docs.docker.com/compose/install/
 
 # Deploy Rocket.Chat server with a Docker Compose using the command:
-# docker-compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketchat up -d
+# docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketchat up -d
 
 volumes:
   rocketchat-uploads:
-  rocketchat-mongo:
-  rocketchat-mongo-dump:
+  rocketchat-mongodb:
   traefik-certificates:
 
 services:
-  mongo:
-    image: mongo:4.0
-    command: mongod --smallfiles --oplogSize 128 --replSet rs0 --storageEngine=mmapv1
+  mongodb:
+    # Image tag (replace with yours)
+    image: bitnami/mongodb:5.0
     volumes:
-     - rocketchat-mongo:/data/db
-     - rocketchat-mongo-dump:/dump
+     - rocketchat-mongodb:/bitnami/mongodb
+    environment:
+      MONGODB_REPLICA_SET_MODE: primary
+      MONGODB_REPLICA_SET_NAME: rs0
+      MONGODB_PORT_NUMBER: 27017
+      MONGODB_INITIAL_PRIMARY_HOST: mongodb
+      MONGODB_INITIAL_PRIMARY_PORT_NUMBER: 27017
+      MONGODB_ADVERTISED_HOSTNAME: mongodb
+      MONGODB_ENABLE_JOURNAL: 'true'
+      ALLOW_EMPTY_PASSWORD: yes
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongo mongo:27017/test --quiet
+      test: echo 'db.runCommand("ping").ok' | mongo mongodb:27017/test --quiet
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 60s
     restart: unless-stopped
 
-  mongo-init-replica:
-    image: mongo:4.0
-    command: >
-      bash -c
-        "for i in `seq 1 30`; do
-          mongo mongo/rocketchat --eval \"
-            rs.initiate({
-              _id: 'rs0',
-              members: [ { _id: 0, host: 'localhost:27017' } ]})\" &&
-          s=$$? && break || s=$$?;
-          echo \"Tried $$i times. Waiting 5 secs...\";
-          sleep 5;
-        done; (exit $$s)"
-    depends_on:
-      - mongo
-
   rocketchat:
     # Image tag (replace with yours)
-    image: rocket.chat:4.6
-    command: >
-      bash -c
-        "for i in `seq 1 30`; do
-          node main.js &&
-          s=$$? && break || s=$$?;
-          echo \"Tried $$i times. Waiting 5 secs...\";
-          sleep 5;
-        done; (exit $$s)"
+    image: rocket.chat:5.0
     volumes:
       - rocketchat-uploads:/app/uploads
     environment:
       PORT: 3000
       # Rocket.Chat URL (replace with yours)
       ROOT_URL: https://rocketchat.heyvaldemar.net
-      MONGO_URL: mongodb://mongo:27017/rocketchat
-      MONGO_OPLOG_URL: mongodb://mongo:27017/local
+      MONGO_URL: mongodb://mongodb:27017/rocketchat?replicaSet=rs0
+      MONGO_OPLOG_URL: mongodb://mongodb:27017/local?replicaSet=rs0
+      DEPLOY_METHOD: docker
       Accounts_UseDNSDomainCheck: 'false'
     healthcheck:
       test: >
@@ -108,7 +92,7 @@ services:
       - "traefik.http.middlewares.compresstraefik.compress=true"
     restart: unless-stopped
     depends_on:
-      mongo:
+      mongodb:
         condition: service_healthy
       traefik:
         condition: service_healthy
