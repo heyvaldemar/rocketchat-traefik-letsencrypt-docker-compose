@@ -6,4 +6,4 @@ Install the Docker Compose by following the official guide: https://docs.docker.
 
 Deploy Rocket.Chat server with a Docker Compose using the command:
 
-`docker-compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketchat up -d`
+`docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketchat up -d`
