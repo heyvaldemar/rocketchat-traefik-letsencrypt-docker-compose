@@ -19,12 +19,12 @@ hey, I’m Vladimir Mikhalev, but my friends call me Valdemar.
 🎸 Follow me on [Facebook](https://www.facebook.com/heyValdemarFB/)\
 🎥 Follow me on [TikTok](https://www.tiktok.com/@heyvaldemar)
 
-# Communication:
+# Communication
 👾 Chat with IT pros on [Discord](https://discord.com/invite/D7fGMYjdR9)\
 🚀 Chat with IT pros on [Telegram](https://t.me/heyValdemarCOMchat)\
 📧 Reach me at ask@sre.gg
 
-# Give Thanks:
+# Give Thanks
 💎 Support on [GitHub](https://github.com/sponsors/heyValdemar)\
 🏆 Support on [Patreon](https://www.patreon.com/heyValdemar)\
 🥤 Support on [BuyMeaCoffee](https://www.buymeacoffee.com/heyValdemar)\
