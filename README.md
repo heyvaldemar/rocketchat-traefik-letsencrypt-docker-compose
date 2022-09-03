@@ -8,6 +8,9 @@ Deploy Rocket.Chat server with a Docker Compose using the command:
 
 Detailed installation guide can be found on my [website](https://www.heyvaldemar.com/install-rocket-chat-with-docker-compose/).
 
+# Infrastructure Model
+![Infrastructure model](.infragenie/infrastructure_model.png)
+
 # Author
 hey, I’m Vladimir Mikhalev, but my friends call me Valdemar.
 
