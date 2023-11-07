@@ -1,6 +1,6 @@
 # Rocket.Chat with Let's Encrypt Using Docker Compose
 
-📙 The complete installation guide is available on my [website](https://www.heyvaldemar.com/install-rocketchat-using-docker-compose/).
+📙 The complete installation guide is available on my [website](https://www.heyvaldemar.com/install-rocket-chat-using-docker-compose/).
 
 ❗ Change variables in the `.env` to meet your requirements.
 
