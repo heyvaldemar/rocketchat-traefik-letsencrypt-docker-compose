@@ -52,7 +52,7 @@ volumes:
 
 services:
   mongodb:
-    image: ${ROCKETCHAT_MONGODB_IMAGE_TAG}
+    image: rocket.chat:6.8.0
     volumes:
      - rocketchat-mongodb:/bitnami/mongodb
     environment:
@@ -75,12 +75,12 @@ services:
     restart: unless-stopped
 
   rocketchat:
-    image: ${ROCKETCHAT_IMAGE_TAG}
+    image: rocket.chat:6.8.0
     volumes:
       - rocketchat-uploads:/app/uploads
     environment:
-      PORT: 3000
-      ROOT_URL: ${ROCKETCHAT_URL}
+      PORT: 800
+      ROOT_URL: https://192.168.77.178
       MONGO_URL: mongodb://mongodb:27017/rocketchat?replicaSet=rs0
       MONGO_OPLOG_URL: mongodb://mongodb:27017/local?replicaSet=rs0
       DEPLOY_METHOD: docker
@@ -94,7 +94,7 @@ services:
          const http = require("http");
          const options = {
            host: "localhost",
-           port: 3000,
+           port: 800,
            path: "/api/info",
            timeout: 2000
          };
@@ -117,10 +117,10 @@ services:
       start_period: 120s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.rocketchat.rule=Host(`${ROCKETCHAT_HOSTNAME}`)"
+      - "traefik.http.routers.rocketchat.rule=Host('192.168.77.178')"
       - "traefik.http.routers.rocketchat.service=rocketchat"
       - "traefik.http.routers.rocketchat.entrypoints=websecure"
-      - "traefik.http.services.rocketchat.loadbalancer.server.port=3000"
+      - "traefik.http.services.rocketchat.loadbalancer.server.port=800"
       - "traefik.http.routers.rocketchat.tls=true"
       - "traefik.http.routers.rocketchat.tls.certresolver=letsencrypt"
       - "traefik.http.services.rocketchat.loadbalancer.passhostheader=true"
@@ -135,7 +135,7 @@ services:
         condition: service_healthy
 
   traefik:
-    image: ${TRAEFIK_IMAGE_TAG}
+    image: rocket.chat:6.8.0
     command:
       - "--log.level=${TRAEFIK_LOG_LEVEL}"
       - "--accesslog=true"
@@ -151,7 +151,7 @@ services:
       - "--providers.docker.endpoint=unix:///var/run/docker.sock"
       - "--providers.docker.exposedByDefault=false"
       - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.email=mixeevskii2004@mail.ru"
       - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json"
       - "--metrics.prometheus=true"
       - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
@@ -173,7 +173,7 @@ services:
       start_period: 5s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME}`)"
+      - "traefik.http.routers.dashboard.rule=Host(`192.168.77.178`)"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
