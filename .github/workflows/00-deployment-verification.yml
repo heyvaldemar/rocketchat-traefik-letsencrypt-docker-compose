@@ -1,5 +1,4 @@
 name: Deployment Verification
-
 on:
   push:
     branches:
@@ -7,11 +6,9 @@ on:
   pull_request:
     branches:
       - main
-
 jobs:
   deploy-and-test:
     runs-on: ubuntu-latest
-
     env:
       NETWORK_ONE: rocketchat-network
       NETWORK_TWO: traefik-network
@@ -19,7 +16,6 @@ jobs:
       APP_HOSTNAME: rocketchat.heyvaldemar.net
       APP_TRAEFIK_HOSTNAME: traefik.rocketchat.heyvaldemar.net
       COMPOSE_PROJECT_NAME: rocketchat
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -29,13 +25,13 @@ jobs:
           docker network create $NETWORK_ONE || true
           docker network create $NETWORK_TWO || true
 
-      - name: Start up services using Docker Compose
-        run: docker compose -f $DOCKER_COMPOSE_FILE -p $COMPOSE_PROJECT_NAME up -d
-
       - name: Modify /etc/hosts for internal routing
         run: |
           echo "127.0.0.1 $APP_HOSTNAME" | sudo tee -a /etc/hosts
           echo "127.0.0.1 $APP_TRAEFIK_HOSTNAME" | sudo tee -a /etc/hosts
+
+      - name: Start up services using Docker Compose
+        run: docker compose -f $DOCKER_COMPOSE_FILE -p $COMPOSE_PROJECT_NAME up -d
 
       - name: Print Docker Compose services status
         run: docker ps
