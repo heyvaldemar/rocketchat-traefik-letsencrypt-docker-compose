@@ -28,7 +28,7 @@ jobs:
       - name: Set Docker socket permissions
         run: |
           sudo chmod 666 /var/run/docker.sock
-          docker info | grep -i api
+          docker info | grep -i api || true
       - name: Create necessary Docker networks
         run: |
           docker network create $NETWORK_ONE || true
