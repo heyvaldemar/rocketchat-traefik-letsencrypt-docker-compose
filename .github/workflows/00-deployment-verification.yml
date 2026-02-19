@@ -18,7 +18,7 @@ jobs:
       COMPOSE_PROJECT_NAME: rocketchat
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Upgrade Docker daemon
         run: |
           sudo apt-get update -qq
