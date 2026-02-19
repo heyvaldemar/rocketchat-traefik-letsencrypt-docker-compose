@@ -14,15 +14,18 @@ services:
     image: ${ROCKETCHAT_MONGODB_IMAGE_TAG}
     volumes:
       - rocketchat-mongodb:/data/db
-    command: mongod --replSet rs0 --oplogSize 128
+    command: mongod --replSet rs0 --oplogSize 128 --bind_ip_all
     networks:
       - rocketchat-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: |
+        mongosh --quiet --eval "
+          try { rs.status().ok } catch(e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}).ok }
+        "
       interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
 
   rocketchat:
