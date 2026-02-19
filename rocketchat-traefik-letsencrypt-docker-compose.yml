@@ -103,7 +103,6 @@ services:
     image: ${TRAEFIK_IMAGE_TAG}
     environment:
       - DOCKER_API_VERSION=1.47
-      - DOCKER_HOST=unix:///var/run/docker.sock
     command:
       # Set the log level (DEBUG, INFO, WARN, ERROR)
       - "--log.level=${TRAEFIK_LOG_LEVEL}"
@@ -142,3 +141,57 @@ services:
       - "--global.checknewversion=true"
       # Disable sending anonymous usage data to the Traefik maintainers
       - "--global.sendanonymoususage=false"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-certificates:/etc/traefik/acme
+    networks:
+      - traefik-network
+    ports:
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      test: ["CMD", "wget", "http://localhost:8082/ping","--spider"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      # Enable Traefik for this container
+      - "traefik.enable=true"
+      # A router to expose the Traefik dashboard
+      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME}`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      # Basic Authentication for the Traefik dashboard
+      - "traefik.http.routers.dashboard.middlewares=authtraefik"
+      - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_BASIC_AUTH}"
+      # Specify the internal server port to the dashboard service
+      - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
+      # Pass the original Host header to the backend
+      - "traefik.http.services.dashboard.loadbalancer.passhostheader=true"
+    restart: unless-stopped
+
+  backups:
+    image: ${ROCKETCHAT_MONGODB_IMAGE_TAG}
+    command: >-
+      sh -c 'sleep $BACKUP_INIT_SLEEP &&
+      while true; do
+        mongodump -h mongodb:27017 --db rocketchat --out $DATA_BACKUPS_PATH/$DATA_BACKUP_NAME-$(date "+%Y-%m-%d_%H-%M") &&
+        find $DATA_BACKUPS_PATH -type d -mtime +$DATA_BACKUP_PRUNE_DAYS | xargs rm -rf &&
+        sleep $BACKUP_INTERVAL; done'
+    volumes:
+      - rocketchat-data-backups:${DATA_BACKUPS_PATH}
+    environment:
+      BACKUP_INIT_SLEEP: ${BACKUP_INIT_SLEEP}
+      BACKUP_INTERVAL: ${BACKUP_INTERVAL}
+      DATA_BACKUP_PRUNE_DAYS: ${DATA_BACKUP_PRUNE_DAYS}
+      DATA_BACKUPS_PATH: ${DATA_BACKUPS_PATH}
+      DATA_BACKUP_NAME: ${DATA_BACKUP_NAME}
+    networks:
+      - rocketchat-network
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
