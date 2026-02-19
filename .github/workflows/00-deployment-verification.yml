@@ -22,13 +22,11 @@ jobs:
       - name: Upgrade Docker daemon
         run: |
           curl -fsSL https://get.docker.com | sudo sh
-          sudo systemctl restart docker
-          sleep 5
+          sudo systemctl stop docker
+          sudo rm -f /var/run/docker.sock
+          sudo systemctl start docker
+          sleep 10
           docker version
-      - name: Set Docker socket permissions
-        run: |
-          sudo chmod 666 /var/run/docker.sock
-          docker info | grep -i api || true
       - name: Create necessary Docker networks
         run: |
           docker network create $NETWORK_ONE || true
