@@ -36,6 +36,9 @@ jobs:
       - name: Print Docker Compose services status
         run: docker ps
 
+      - name: Show container logs on startup
+        run: docker compose -f $DOCKER_COMPOSE_FILE -p $COMPOSE_PROJECT_NAME logs --tail=50
+
       - name: Wait for the application to be ready via Traefik
         run: |
           echo "Checking the routing and availability of the application via Traefik..."
