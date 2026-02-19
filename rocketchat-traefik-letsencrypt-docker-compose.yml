@@ -67,27 +67,16 @@ services:
       retries: 3
       start_period: 120s
     labels:
-      # Enable Traefik for this container
       - "traefik.enable=true"
-      # Match incoming requests on a specific hostname
       - "traefik.http.routers.rocketchat.rule=Host(`${ROCKETCHAT_HOSTNAME}`)"
-      # Assign the router to a named Traefik service
       - "traefik.http.routers.rocketchat.service=rocketchat"
-      # Use the 'websecure' (HTTPS) entry point
       - "traefik.http.routers.rocketchat.entrypoints=websecure"
-      # Define the internal container port for routing
       - "traefik.http.services.rocketchat.loadbalancer.server.port=3000"
-      # Enable TLS on this router
       - "traefik.http.routers.rocketchat.tls=true"
-      # Use Let's Encrypt for certificate management
       - "traefik.http.routers.rocketchat.tls.certresolver=letsencrypt"
-      # Pass the original Host header to the container
       - "traefik.http.services.rocketchat.loadbalancer.passhostheader=true"
-      # Apply a compression middleware
       - "traefik.http.routers.rocketchat.middlewares=compresstraefik"
-      # Define settings for the compression middleware
       - "traefik.http.middlewares.compresstraefik.compress=true"
-      # Specify which Docker network Traefik should use for routing
       - "traefik.docker.network=traefik-network"
     restart: unless-stopped
     depends_on:
@@ -98,43 +87,27 @@ services:
 
   traefik:
     image: ${TRAEFIK_IMAGE_TAG}
+    environment:
+      - DOCKER_API_VERSION=1.47
     command:
-      # Set the log level (DEBUG, INFO, WARN, ERROR)
       - "--log.level=${TRAEFIK_LOG_LEVEL}"
-      # Enable the built-in API and web-based dashboard
       - "--api.dashboard=true"
-      # Enable the /ping endpoint so we can health-check Traefik
       - "--ping=true"
-      # Assign the /ping endpoint to a dedicated entry point on port 8082
       - "--ping.entrypoint=ping"
       - "--entrypoints.ping.address=:8082"
-      # Define the primary HTTP entry point on port 80
       - "--entrypoints.web.address=:80"
-      # Define the secure (HTTPS) entry point on port 443
       - "--entrypoints.websecure.address=:443"
-      # HTTP -> HTTPS redirect at entrypoint level
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-      # Enable the Docker provider to detect containers and their labels
       - "--providers.docker=true"
-      # Point Traefik to the Docker socket
       - "--providers.docker.endpoint=unix:///var/run/docker.sock"
-      # Prevent automatic exposure of all containers; only expose containers
-      # with "traefik.enable=true"
       - "--providers.docker.exposedbydefault=false"
-      # Use ACME (Let's Encrypt) to generate/renew certificates via TLS challenge
       - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
-      # The email address used by Let's Encrypt for renewal notices
       - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL}"
-      # The file where ACME certificates are stored inside the container
       - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json"
-      # Enable Prometheus metrics
       - "--metrics.prometheus=true"
-      # Configure Prometheus histogram buckets
       - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
-      # Check for newer Traefik versions and optionally log that info
       - "--global.checknewversion=true"
-      # Disable sending anonymous usage data to the Traefik maintainers
       - "--global.sendanonymoususage=false"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -151,19 +124,14 @@ services:
       retries: 3
       start_period: 5s
     labels:
-      # Enable Traefik for this container
       - "traefik.enable=true"
-      # A router to expose the Traefik dashboard
       - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME}`)"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls=true"
       - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.dashboard.service=api@internal"
-      # Basic Authentication for the Traefik dashboard
       - "traefik.http.routers.dashboard.middlewares=authtraefik"
       - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_BASIC_AUTH}"
-      # Specify the internal server port to the dashboard service
       - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
-      # Pass the original Host header to the backend
       - "traefik.http.services.dashboard.loadbalancer.passhostheader=true"
     restart: unless-stopped
