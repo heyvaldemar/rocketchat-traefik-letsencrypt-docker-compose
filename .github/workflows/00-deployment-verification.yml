@@ -25,6 +25,10 @@ jobs:
           sudo systemctl restart docker
           sleep 5
           docker version
+      - name: Set Docker socket permissions
+        run: |
+          sudo chmod 666 /var/run/docker.sock
+          docker info | grep -i api
       - name: Create necessary Docker networks
         run: |
           docker network create $NETWORK_ONE || true
@@ -37,10 +41,6 @@ jobs:
         run: docker compose -f $DOCKER_COMPOSE_FILE -p $COMPOSE_PROJECT_NAME up -d
       - name: Print Docker Compose services status
         run: docker ps
-      - name: Verify Docker API version in Traefik container
-        run: |
-          docker exec rocketchat-traefik-1 env | grep DOCKER
-          docker version
       - name: Show container logs on startup
         run: docker compose -f $DOCKER_COMPOSE_FILE -p $COMPOSE_PROJECT_NAME logs --tail=50
       - name: Wait for the application to be ready via Traefik
