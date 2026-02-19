@@ -26,7 +26,6 @@ jobs:
           sudo systemctl restart docker
           sleep 5
           docker version
-          docker info | grep "API version"
       - name: Create necessary Docker networks
         run: |
           docker network create $NETWORK_ONE || true
