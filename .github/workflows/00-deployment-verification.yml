@@ -21,8 +21,7 @@ jobs:
         uses: actions/checkout@v6
       - name: Upgrade Docker daemon
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq docker-ce docker-ce-cli containerd.io
+          curl -fsSL https://get.docker.com | sudo sh
           sudo systemctl restart docker
           sleep 5
           docker version
