@@ -20,6 +20,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      - name: Upgrade Docker daemon
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq docker-ce docker-ce-cli containerd.io
+          sudo systemctl restart docker
+          docker version
+
       - name: Create necessary Docker networks
         run: |
           docker network create $NETWORK_ONE || true
@@ -38,24 +45,6 @@ jobs:
 
       - name: Show container logs on startup
         run: docker compose -f $DOCKER_COMPOSE_FILE -p $COMPOSE_PROJECT_NAME logs --tail=50
-
-      - name: Debug Traefik routing
-        run: |
-          echo "=== Traefik Routers ==="
-          curl -s http://localhost:8080/api/http/routers | python3 -m json.tool || echo "Traefik API not reachable"
-
-          echo "=== Traefik Services ==="
-          curl -s http://localhost:8080/api/http/services | python3 -m json.tool || echo "Traefik API not reachable"
-
-          echo "=== Container Status ==="
-          docker compose -f $DOCKER_COMPOSE_FILE -p $COMPOSE_PROJECT_NAME ps
-
-          echo "=== RocketChat Labels ==="
-          docker inspect $(docker compose -f $DOCKER_COMPOSE_FILE -p $COMPOSE_PROJECT_NAME ps -q rocketchat) \
-            --format '{{json .Config.Labels}}' | python3 -m json.tool 2>/dev/null || echo "Cannot inspect container"
-
-          echo "=== Traefik Logs ==="
-          docker compose -f $DOCKER_COMPOSE_FILE -p $COMPOSE_PROJECT_NAME logs --tail=100 traefik
 
       - name: Wait for the application to be ready via Traefik
         run: |
