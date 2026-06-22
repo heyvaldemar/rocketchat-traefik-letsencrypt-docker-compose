@@ -18,7 +18,7 @@ jobs:
       COMPOSE_PROJECT_NAME: rocketchat
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Ensure Docker is ready
         run: |
