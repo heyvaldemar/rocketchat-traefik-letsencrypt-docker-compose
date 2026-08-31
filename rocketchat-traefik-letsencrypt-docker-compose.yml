@@ -1,3 +1,15 @@
+# Image pins live HERE, as interpolation defaults, so `git pull` (or
+# re-downloading this file) delivers the exact version combination this
+# repository has tested — no .env editing required. Setting the matching
+# variable in .env overrides the default for anyone who wants to pin
+# differently; .env itself carries only secrets and deliberate overrides.
+# CI (Trivy scans, check-pin-freshness, the ephemeral test .env) reads
+# the pins from these lines — this block is the single source of truth.
+x-images:
+  traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:3.7@sha256:9c2a54d87f76f5c2f5f2682c68394af92fb12c0a2686798d6462a3f84bd78eaf}
+  mongodb: &mongodb-image ${ROCKETCHAT_MONGODB_IMAGE_TAG:-mongo:7.0@sha256:b6421fd6d1c5ded6377b397d8983e2f82e2100dc5123332dcfda2065a472be5b}
+  rocketchat: &rocketchat-image ${ROCKETCHAT_IMAGE_TAG:-rocketchat/rocket.chat:8.7.1@sha256:24aa079410837769e4e36ad275070a9c798f8db59b40ee03e2df3a6425e56eca}
+
 networks:
   rocketchat-network:
     external: true
@@ -12,7 +24,7 @@ volumes:
 
 services:
   mongodb:
-    image: ${ROCKETCHAT_MONGODB_IMAGE_TAG}
+    image: *mongodb-image
     volumes:
       - rocketchat-mongodb:/data/db
     command: mongod --replSet rs0 --oplogSize 128 --bind_ip_all
@@ -30,12 +42,12 @@ services:
     restart: unless-stopped
 
   rocketchat:
-    image: ${ROCKETCHAT_IMAGE_TAG}
+    image: *rocketchat-image
     volumes:
       - rocketchat-uploads:/app/uploads
     environment:
       PORT: 3000
-      ROOT_URL: ${ROCKETCHAT_URL}
+      ROOT_URL: ${ROCKETCHAT_URL:?set in .env - see .env.example}
       MONGO_URL: mongodb://mongodb:27017/rocketchat?replicaSet=rs0
       MONGO_OPLOG_URL: mongodb://mongodb:27017/local?replicaSet=rs0
       DEPLOY_METHOD: docker
@@ -74,7 +86,7 @@ services:
       # Enable Traefik for this container
       - "traefik.enable=true"
       # Match incoming requests on a specific hostname
-      - "traefik.http.routers.rocketchat.rule=Host(`${ROCKETCHAT_HOSTNAME}`)"
+      - "traefik.http.routers.rocketchat.rule=Host(`${ROCKETCHAT_HOSTNAME:?set in .env - see .env.example}`)"
       # Assign the router to a named Traefik service
       - "traefik.http.routers.rocketchat.service=rocketchat"
       # Use the 'websecure' (HTTPS) entry point
@@ -101,12 +113,12 @@ services:
         condition: service_healthy
 
   traefik:
-    image: ${TRAEFIK_IMAGE_TAG}
+    image: *traefik-image
     environment:
       - DOCKER_API_VERSION=1.47
     command:
       # Set the log level (DEBUG, INFO, WARN, ERROR)
-      - "--log.level=${TRAEFIK_LOG_LEVEL}"
+      - "--log.level=${TRAEFIK_LOG_LEVEL:-WARN}"
       # Enable the built-in API and web-based dashboard
       - "--api.dashboard=true"
       # Enable the /ping endpoint so we can health-check Traefik
@@ -131,7 +143,7 @@ services:
       # Use ACME (Let's Encrypt) to generate/renew certificates via TLS challenge
       - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
       # The email address used by Let's Encrypt for renewal notices
-      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL:?set in .env - see .env.example}"
       # The file where ACME certificates are stored inside the container
       - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json"
       # Enable Prometheus metrics
@@ -160,14 +172,14 @@ services:
       # Enable Traefik for this container
       - "traefik.enable=true"
       # A router to expose the Traefik dashboard
-      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME}`)"
+      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME:?set in .env - see .env.example}`)"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls=true"
       - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.dashboard.service=api@internal"
       # Basic Authentication for the Traefik dashboard
       - "traefik.http.routers.dashboard.middlewares=authtraefik"
-      - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_BASIC_AUTH}"
+      - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_BASIC_AUTH:?set in .env - see .env.example for htpasswd generation}"
       # Specify the internal server port to the dashboard service
       - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
       # Pass the original Host header to the backend
@@ -175,21 +187,21 @@ services:
     restart: unless-stopped
 
   backups:
-    image: ${ROCKETCHAT_MONGODB_IMAGE_TAG}
+    image: *mongodb-image
     command: >-
-      sh -c 'sleep $BACKUP_INIT_SLEEP &&
+      sh -c 'sleep $$BACKUP_INIT_SLEEP &&
       while true; do
-        mongodump -h mongodb:27017 --db rocketchat --out $DATA_BACKUPS_PATH/$DATA_BACKUP_NAME-$(date "+%Y-%m-%d_%H-%M") &&
-        find $DATA_BACKUPS_PATH -type d -mtime +$DATA_BACKUP_PRUNE_DAYS | xargs rm -rf &&
-        sleep $BACKUP_INTERVAL; done'
+        mongodump -h mongodb:27017 --db rocketchat --out $$DATA_BACKUPS_PATH/$$DATA_BACKUP_NAME-$$(date "+%Y-%m-%d_%H-%M") &&
+        find $$DATA_BACKUPS_PATH -type d -mtime +$$DATA_BACKUP_PRUNE_DAYS | xargs rm -rf &&
+        sleep $$BACKUP_INTERVAL; done'
     volumes:
-      - rocketchat-data-backups:${DATA_BACKUPS_PATH}
+      - rocketchat-data-backups:${DATA_BACKUPS_PATH:-/srv/rocketchat-mongodb/backups}
     environment:
-      BACKUP_INIT_SLEEP: ${BACKUP_INIT_SLEEP}
-      BACKUP_INTERVAL: ${BACKUP_INTERVAL}
-      DATA_BACKUP_PRUNE_DAYS: ${DATA_BACKUP_PRUNE_DAYS}
-      DATA_BACKUPS_PATH: ${DATA_BACKUPS_PATH}
-      DATA_BACKUP_NAME: ${DATA_BACKUP_NAME}
+      BACKUP_INIT_SLEEP: ${BACKUP_INIT_SLEEP:-30m}
+      BACKUP_INTERVAL: ${BACKUP_INTERVAL:-24h}
+      DATA_BACKUP_PRUNE_DAYS: ${DATA_BACKUP_PRUNE_DAYS:-7}
+      DATA_BACKUPS_PATH: ${DATA_BACKUPS_PATH:-/srv/rocketchat-mongodb/backups}
+      DATA_BACKUP_NAME: ${DATA_BACKUP_NAME:-rocketchat-mongodb-backup}
     networks:
       - rocketchat-network
     restart: unless-stopped

@@ -1,103 +1,190 @@
-# Rocket.Chat with Let's Encrypt Using Docker Compose
+# Rocket.Chat + Traefik + Let's Encrypt — Docker Compose
 
-[![Deployment Verification](https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/actions/workflows/00-deployment-verification.yml/badge.svg)](https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/actions)
+[![Deployment Verification](https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-The badge displayed on my repository indicates the status of the deployment verification workflow as executed on the latest commit to the main branch.
+## Contents
 
-**Passing**: This means the most recent commit has successfully passed all deployment checks, confirming that the Docker Compose setup functions correctly as designed.
+- [Why this stack?](#why-this-stack)
+- [Prerequisites](#prerequisites)
+- [Getting started](#getting-started)
+- [Features](#features)
+  - [Typical use cases](#typical-use-cases)
+- [Supply chain trust](#supply-chain-trust)
+- [Production checklist](#production-checklist)
+- [Backups](#backups)
+- [Testing](#testing)
+- [Security Notes](#security-notes)
+- [About the maintainer](#about-the-maintainer)
 
-📙 The complete installation guide is available on my [website](https://www.heyvaldemar.com/install-rocket-chat-using-docker-compose/).
+This repository deploys **Rocket.Chat** behind **Traefik** with automatic **Let's Encrypt TLS**, backed by a **MongoDB replica set** (single-node, as Rocket.Chat requires), with a scheduled **mongodump backup container**. One `docker compose up` away from a self-hosted team-chat service at `https://your-domain`.
 
-❗ Change variables in the `.env` to meet your requirements.
+📙 Full narrative installation guide on the blog: [heyvaldemar.com/install-rocket-chat-using-docker-compose/](https://www.heyvaldemar.com/install-rocket-chat-using-docker-compose/).
 
-💡 Note that the `.env` file should be in the same directory as `rocketchat-traefik-letsencrypt-docker-compose.yml`.
+## Why this stack?
 
-Create networks for your services before deploying the configuration using the commands:
+| Need | This stack | Manual install | Kubernetes | Other compose examples |
+|------|-----------|----------------|------------|------------------------|
+| Ready to deploy in <10 min | ✅ | ❌ hours of setup | ✅ if K8s is already running | Often |
+| TLS via Let's Encrypt, auto-renewed | ✅ Traefik ACME built-in | Manual certbot | Via cert-manager | Rare |
+| MongoDB replica set auto-initialized | ✅ healthcheck bootstraps `rs0` | Manual `rs.initiate()` | Operator | Often missing — RC refuses to start |
+| Scheduled DB backups + pruning | ✅ mongodump loop | Manual cron | External | Rare |
+| Upstream images pinned by `sha256` digest | ✅ | N/A | Depends | Rare |
+| Weekly pin-freshness check in CI | ✅ | N/A | Depends | Rare |
+| CI-verified deployment on every push | ✅ | N/A | Varies | Rare |
+| Credentials via env (never committed) | ✅ | N/A | K8s Secrets | Often committed plaintext |
 
-`docker network create traefik-network`
+Four moving parts (Traefik + Rocket.Chat + MongoDB + backups). No Kubernetes prerequisites, no manual certificate management, no manual replica-set ceremony.
 
-`docker network create rocketchat-network`
+## Prerequisites
 
-Deploy Rocket.Chat using Docker Compose:
+Before you start, you need:
 
-`docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketchat up -d`
+- **A Linux server** with a public IP. Tested on Ubuntu 22.04 LTS+ and Debian 12+. Local Mac/Windows works for dev; production is Linux.
+- **Docker Engine 24+ and Docker Compose 2.20+.** Quick check: `docker version` and `docker compose version`.
+- **A domain you control,** with two `A` records pointing at your server's public IP — one for Rocket.Chat (e.g. `rocketchat.example.com`), one for the Traefik dashboard (e.g. `traefik.rocketchat.example.com`). DNS must propagate before deploy or the Let's Encrypt TLS-ALPN challenge will fail.
+- **Ports 80 and 443 open** on the server's firewall and not bound by another service.
+- **~2 GB free RAM and 1 free CPU** for the running stack, plus disk for MongoDB data and backup retention.
 
-## Author
+## Getting started
 
-hey everyone,
+```bash
+# 1. Clone
+git clone https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose
+cd rocketchat-traefik-letsencrypt-docker-compose
 
-💾 I’ve been in the IT game for over 20 years, cutting my teeth with some big names like [IBM](https://www.linkedin.com/in/heyvaldemar/), [Thales](https://www.linkedin.com/in/heyvaldemar/), and [Amazon](https://www.linkedin.com/in/heyvaldemar/). These days, I wear the hat of a DevOps Consultant and Team Lead, but what really gets me going is Docker and container technology - I’m kind of obsessed!
+# 2. Create the two Docker networks the stack expects
+docker network create traefik-network
+docker network create rocketchat-network
 
-💛 I have my own IT [blog](https://www.heyvaldemar.com/), where I’ve built a [community](https://discord.gg/AJQGCCBcqf) of DevOps enthusiasts who share my love for all things Docker, containers, and IT technologies in general. And to make sure everyone can jump on this awesome DevOps train, I write super detailed guides (seriously, they’re foolproof!) that help even newbies deploy and manage complex IT solutions.
+# 3. Copy the environment template and fill in required values
+cp .env.example .env
+$EDITOR .env
+# ^ Required: ROCKETCHAT_HOSTNAME, ROCKETCHAT_URL, TRAEFIK_HOSTNAME,
+#   TRAEFIK_ACME_EMAIL, TRAEFIK_BASIC_AUTH.
 
-🚀 My dream is to empower every single person in the DevOps community to squeeze every last drop of potential out of Docker and container tech.
+# 4. Deploy
+docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketchat up -d
+```
 
-🐳 As a [Docker Captain](https://www.docker.com/captains/vladimir-mikhalev/), I’m stoked to share my knowledge, experiences, and a good dose of passion for the tech. My aim is to encourage learning, innovation, and growth, and to inspire the next generation of IT whizz-kids to push Docker and container tech to its limits.
+Within a couple of minutes `https://${ROCKETCHAT_HOSTNAME}` serves the Rocket.Chat setup wizard with a fresh Let's Encrypt certificate. The wizard creates the admin account and workspace on first visit.
 
-Let’s do this together!
+### What success looks like
 
-## My 2D Portfolio
+```bash
+# All services healthy (Rocket.Chat takes ~2 minutes on first boot):
+docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketchat ps
 
-🕹️ Click into [sre.gg](https://www.sre.gg/) — my virtual space is a 2D pixel-art portfolio inviting you to interact with elements that encapsulate the milestones of my DevOps career.
+# The API answers with the running version:
+curl -fsS "https://${ROCKETCHAT_HOSTNAME}/api/info"
+# Expected: {"info":{"version":"8.7.1"},...}
 
-## My Courses
+# Traefik issued a certificate:
+docker compose -p rocketchat logs traefik | grep -i "adding certificate"
 
-🎓 Dive into my [comprehensive IT courses](https://www.heyvaldemar.com/courses/) designed for enthusiasts and professionals alike. Whether you're looking to master Docker, conquer Kubernetes, or advance your DevOps skills, my courses provide a structured pathway to enhancing your technical prowess.
+# First backup lands after BACKUP_INIT_SLEEP (default 30m):
+docker compose -p rocketchat logs backups | tail -3
+```
 
-🔑 [Each course](https://www.udemy.com/user/heyvaldemar/) is built from the ground up with real-world scenarios in mind, ensuring that you gain practical knowledge and hands-on experience. From beginners to seasoned professionals, there's something here for everyone to elevate their IT skills.
+### Common first-deploy issues
 
-## My Services
+- **Cert issuance fails.** DNS hasn't propagated or port 80 isn't reachable from the internet. Confirm with `dig +short ${ROCKETCHAT_HOSTNAME}` and `curl -I http://${ROCKETCHAT_HOSTNAME}` from outside the server.
+- **`docker compose up` fails with `set in .env`.** A required variable is empty; the error names it.
+- **`network rocketchat-network not found`.** Step 2 was skipped.
+- **Rocket.Chat restarts waiting for MongoDB.** The replica set initializes via the mongodb healthcheck on first boot; give it up to a minute. `docker compose -p rocketchat logs mongodb` shows `rs.initiate` results.
 
-💼 Take a look at my [service catalog](https://www.heyvaldemar.com/services/) and find out how we can make your technological life better. Whether it's increasing the efficiency of your IT infrastructure, advancing your career, or expanding your technological horizons — I'm here to help you achieve your goals. From DevOps transformations to building gaming computers — let's make your technology unparalleled!
+### Apply `.env` or compose-file changes
 
-## Patreon Exclusives
+```bash
+docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketchat up -d --force-recreate
+```
 
-🏆 Join my [Patreon](https://www.patreon.com/heyvaldemar) and dive deep into the world of Docker and DevOps with exclusive content tailored for IT enthusiasts and professionals. As your experienced guide, I offer a range of membership tiers designed to suit everyone from newbies to IT experts.
+## Features
 
-## My Recommendations
+- **Rocket.Chat** latest stable (8.7.1) — team chat, channels, DMs, apps, federation-capable.
+- **MongoDB 7.0** single-node replica set, auto-initialized by the container healthcheck (Rocket.Chat requires oplog access). The 7.0 line is pinned deliberately: MongoDB 8.0 crashes on Linux kernels 6.19–7.0.13 ([SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912)), which includes current distribution kernels.
+- **Traefik v3** reverse proxy with automatic HTTP→HTTPS redirect and Let's Encrypt TLS-ALPN certificate issuance.
+- **Basic-auth protected Traefik dashboard** on a separate hostname.
+- **Scheduled `mongodump` backups** with configurable interval and retention.
+- **Healthchecks** on every service with start-order dependencies.
+- **Credentials required at deploy time** — compose fails fast if `.env` is incomplete.
 
-📕 Check out my collection of [essential DevOps books](https://kit.co/heyvaldemar/essential-devops-books)\
-🖥️ Check out my [studio streaming and recording kit](https://kit.co/heyvaldemar/my-studio-streaming-and-recording-kit)\
-📡 Check out my [streaming starter kit](https://kit.co/heyvaldemar/streaming-starter-kit)
+### Typical use cases
 
-## Follow Me
+- **Self-hosted Slack alternative** — teams that want chat history on their own hardware.
+- **Community chat server** — public or invite-only workspaces without per-seat SaaS pricing.
+- **Compliance-constrained messaging** — data residency requirements that rule out hosted chat.
+- **Integration hub** — webhooks, bots, and the Rocket.Chat Apps marketplace against your own instance.
 
-🎬 [YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1)\
-🐦 [X / Twitter](https://twitter.com/heyvaldemar)\
-🎨 [Instagram](https://www.instagram.com/heyvaldemar/)\
-🐘 [Mastodon](https://mastodon.social/@heyvaldemar)\
-🧵 [Threads](https://www.threads.net/@heyvaldemar)\
-🎸 [Facebook](https://www.facebook.com/heyvaldemarFB/)\
-🧊 [Bluesky](https://bsky.app/profile/heyvaldemar.bsky.social)\
-🎥 [TikTok](https://www.tiktok.com/@heyvaldemar)\
-💻 [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)\
-📣 [daily.dev Squad](https://app.daily.dev/squads/devopscompass)\
-🧩 [LeetCode](https://leetcode.com/u/heyvaldemar/)\
-🐈 [GitHub](https://github.com/heyvaldemar)
+## Supply chain trust
 
-## Community of IT Experts
+This repository is a **deployment template**, not a custom Docker image. It orchestrates three upstream images:
 
-👾 [Discord](https://discord.gg/AJQGCCBcqf)
+- [`traefik`](https://hub.docker.com/_/traefik) — reverse proxy, Docker Hub official image
+- [`rocketchat/rocket.chat`](https://hub.docker.com/r/rocketchat/rocket.chat) — Rocket.Chat upstream
+- [`mongo`](https://hub.docker.com/_/mongo) — MongoDB, Docker Hub official image
 
-## Refill My Coffee Supplies
+All three are pinned to `tag@sha256:<digest>` as interpolation defaults in the compose file's `x-images` block. Compose pulls by digest, not by tag — and `git pull` alone delivers the version combination this repository has tested, because the pins live in the tracked compose file rather than in your `.env`. Setting an `*_IMAGE_TAG` variable in `.env` overrides the default when you deliberately want a different version.
 
-💖 [PayPal](https://www.paypal.com/paypalme/heyvaldemarCOM)\
-🏆 [Patreon](https://www.patreon.com/heyvaldemar)\
-💎 [GitHub](https://github.com/sponsors/heyvaldemar)\
-🥤 [BuyMeaCoffee](https://www.buymeacoffee.com/heyvaldemar)\
-🍪 [Ko-fi](https://ko-fi.com/heyvaldemar)
+The weekly `check-pin-freshness` CI job re-resolves each pinned tag against its registry and compares the pinned Rocket.Chat and Traefik versions against the latest upstream releases — any drift fails the run and notifies the maintainer. CI's **Deployment Verification** workflow runs on every push, pull request, and every Monday at 06:00 UTC. GitHub Actions are pinned by commit SHA; Dependabot's `github-actions` ecosystem keeps those fresh.
 
-🌟 **Bitcoin (BTC):** bc1q2fq0k2lvdythdrj4ep20metjwnjuf7wccpckxc\
-🔹 **Ethereum (ETH):** 0x76C936F9366Fad39769CA5285b0Af1d975adacB8\
-🪙 **Binance Coin (BNB):** bnb1xnn6gg63lr2dgufngfr0lkq39kz8qltjt2v2g6\
-💠 **Litecoin (LTC):** LMGrhx8Jsx73h1pWY9FE8GB46nBytjvz8g
+## Production checklist
+
+Before exposing this to real users, check every box:
+
+- [ ] **Complete the setup wizard immediately after deploy.** Until the admin account exists, anyone reaching the URL can create it.
+- [ ] **Disable open registration** (Admin → Accounts) unless the workspace is meant to be public.
+- [ ] **Strong Traefik dashboard hash.** Regenerate `TRAEFIK_BASIC_AUTH` per deployment (command in `.env.example`).
+- [ ] **Host-mount the backups volume** for disaster recovery — bind `DATA_BACKUPS_PATH` to a host path covered by your off-host backup solution.
+- [ ] **Back up uploads too.** File uploads live in the `rocketchat-uploads` volume; `mongodump` covers only the database.
+- [ ] **Verify Let's Encrypt cert issuance** in the Traefik logs on first start.
+- [ ] **Plan your upgrade path.** Rocket.Chat supports rolling forward through minor versions; read the release notes before major bumps and back up first — there is no schema downgrade.
+
+## Backups
+
+The `backups` container runs `mongodump` of the `rocketchat` database on a loop: dump → prune → sleep. Each dump is a timestamped directory under `DATA_BACKUPS_PATH`; directories older than `DATA_BACKUP_PRUNE_DAYS` are pruned. All knobs (`BACKUP_INIT_SLEEP`, `BACKUP_INTERVAL`, `DATA_BACKUP_PRUNE_DAYS`, paths) are configured via `.env` with sensible compose-level defaults (30-minute warm-up, 24-hour interval, 7-day retention).
+
+**Verify backups are running:**
+
+```bash
+docker compose -p rocketchat logs backups | tail -5
+docker compose -p rocketchat exec backups ls /srv/rocketchat-mongodb/backups/
+```
+
+**Restore** (destructive — restores over the live database):
+
+```bash
+docker compose -p rocketchat exec backups mongorestore -h mongodb:27017 --db rocketchat --drop /srv/rocketchat-mongodb/backups/<backup-dir>/rocketchat
+```
+
+**Off-host replication.** By default backups live in a named Docker volume — if the host dies, backups die with it. Bind-mount the backup path to a host directory covered by your off-host backup solution (restic, rclone, Borg, S3 sync).
+
+## Testing
+
+The [Deployment Verification](https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every Monday at 06:00 UTC:
+
+1. **Lint** — actionlint on the workflow.
+2. **Trivy scans** of all three pinned images (CRITICAL/HIGH, SARIF to the Security tab).
+3. **Pin freshness** (weekly/manual) — digest drift against registries plus release-lag checks for Rocket.Chat and Traefik.
+4. **Deploy-and-test** — boots the full stack with ephemeral credentials, waits for the MongoDB replica set to initialize and Rocket.Chat to report healthy, then requires `/api/info` to answer with the running version through Traefik before the run may pass.
+
+A green run is the authoritative proof that the shipped configuration produces a working instance — not just started containers.
+
+## Security Notes
+
+- Credentials are read from `.env` at deploy time; `.env` is gitignored and the compose file fails fast on missing required variables.
+- MongoDB listens only on the internal `rocketchat-network` — it is not exposed to the host or the internet.
+- Upstream image digests are pinned; the weekly freshness job flags drift loudly.
+- CI runs on every push and every Monday to catch upstream drift.
+
+---
+
+## About the maintainer
 
 <div align="center">
 
-### Show some 💜 by starring some of the [repositories](https://github.com/heyValdemar?tab=repositories)!
+**Maintained by [Vladimir Mikhalev](https://github.com/heyvaldemar)** — Docker Captain · IBM Champion · AWS Community Builder
 
-![octocat](https://user-images.githubusercontent.com/10498744/210113490-e2fad07f-4488-4da8-a656-b9abbdd8cb26.gif)
+[YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1) · [Blog](https://heyvaldemar.com) · [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)
 
 </div>
-
-![footer](https://user-images.githubusercontent.com/10498744/210157572-1fca0242-8af2-46a6-bfa3-666ffd40ebde.svg)
