@@ -58,11 +58,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${ROCKETCHAT_MEMORY_LIMIT:-1g}
-          cpus: "${ROCKETCHAT_CPU_LIMIT:-1.0}"
+          memory: ${ROCKETCHAT_MEMORY_LIMIT:-2g}
+          cpus: "${ROCKETCHAT_CPU_LIMIT:-2.0}"
         reservations:
-          memory: ${ROCKETCHAT_MEMORY_RESERVATION:-128m}
-          cpus: "${ROCKETCHAT_CPU_RESERVATION:-0.25}"
+          memory: ${ROCKETCHAT_MEMORY_RESERVATION:-256m}
+          cpus: "${ROCKETCHAT_CPU_RESERVATION:-0.5}"
     volumes:
       - rocketchat-uploads:/app/uploads
     environment:
