@@ -25,6 +25,16 @@ volumes:
 services:
   mongodb:
     image: *mongodb-image
+    # Resource limits as .env-overridable defaults (e.g. ROCKETCHAT_MONGODB_MEMORY_LIMIT=2g);
+    # the override survives every git pull.
+    deploy:
+      resources:
+        limits:
+          memory: ${ROCKETCHAT_MONGODB_MEMORY_LIMIT:-1g}
+          cpus: "${ROCKETCHAT_MONGODB_CPU_LIMIT:-1.0}"
+        reservations:
+          memory: ${ROCKETCHAT_MONGODB_MEMORY_RESERVATION:-128m}
+          cpus: "${ROCKETCHAT_MONGODB_CPU_RESERVATION:-0.25}"
     volumes:
       - rocketchat-mongodb:/data/db
     command: mongod --replSet rs0 --oplogSize 128 --bind_ip_all
@@ -43,6 +53,16 @@ services:
 
   rocketchat:
     image: *rocketchat-image
+    # Resource limits as .env-overridable defaults (e.g. ROCKETCHAT_MEMORY_LIMIT=2g);
+    # the override survives every git pull.
+    deploy:
+      resources:
+        limits:
+          memory: ${ROCKETCHAT_MEMORY_LIMIT:-1g}
+          cpus: "${ROCKETCHAT_CPU_LIMIT:-1.0}"
+        reservations:
+          memory: ${ROCKETCHAT_MEMORY_RESERVATION:-128m}
+          cpus: "${ROCKETCHAT_CPU_RESERVATION:-0.25}"
     volumes:
       - rocketchat-uploads:/app/uploads
     environment:
@@ -114,6 +134,16 @@ services:
 
   traefik:
     image: *traefik-image
+    # Resource limits as .env-overridable defaults (e.g. TRAEFIK_MEMORY_LIMIT=2g);
+    # the override survives every git pull.
+    deploy:
+      resources:
+        limits:
+          memory: ${TRAEFIK_MEMORY_LIMIT:-256m}
+          cpus: "${TRAEFIK_CPU_LIMIT:-0.5}"
+        reservations:
+          memory: ${TRAEFIK_MEMORY_RESERVATION:-64m}
+          cpus: "${TRAEFIK_CPU_RESERVATION:-0.1}"
     environment:
       - DOCKER_API_VERSION=1.47
     command:
@@ -188,6 +218,16 @@ services:
 
   backups:
     image: *mongodb-image
+    # Resource limits as .env-overridable defaults (e.g. ROCKETCHAT_BACKUPS_MEMORY_LIMIT=2g);
+    # the override survives every git pull.
+    deploy:
+      resources:
+        limits:
+          memory: ${ROCKETCHAT_BACKUPS_MEMORY_LIMIT:-256m}
+          cpus: "${ROCKETCHAT_BACKUPS_CPU_LIMIT:-0.5}"
+        reservations:
+          memory: ${ROCKETCHAT_BACKUPS_MEMORY_RESERVATION:-32m}
+          cpus: "${ROCKETCHAT_BACKUPS_CPU_RESERVATION:-0.1}"
     command: >-
       bash -c 'set -o pipefail;
       sleep "$$BACKUP_INIT_SLEEP";
