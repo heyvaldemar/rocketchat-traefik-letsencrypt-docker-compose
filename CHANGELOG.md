@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _(no unreleased changes yet)_
 
+## [1.1.0] - 2026-09-02
+
+### Fixed
+
+- **A failed database dump no longer produces a silent, corrupt backup.**
+  The old loop piped the dump into `gzip` and only checked `gzip`'s exit
+  status, so a dump that failed halfway (database down, wrong password,
+  disk full) still left a small `.gz` that looked like a backup. The loop
+  now runs with `pipefail`, logs `Database backup OK: <file> (<bytes>
+  bytes)` or `Database backup FAILED` per cycle, keeps a failed dump as
+  `<file>.failed` for diagnosis, and prunes only its own files. Retention
+  set to `0` disables pruning instead of deleting everything.
+
+### Changed
+
+- **Dumps are now single gzip archives** (`mongodump --archive --gzip`)
+  instead of directory trees, so a backup is one file to copy, verify,
+  and prune. Directory backups from earlier versions still restore with
+  plain `mongorestore <dir>/rocketchat`.
+
+### Added
+
+- `rocketchat-restore-database.sh` — interactive restore: lists archives,
+  stops Rocket.Chat, `mongorestore --drop --gzip --archive`, starts it.
+- CI now waits for the first backup cycle and proves the produced
+  archive is readable (plus a readable `tar.gz` for the data backup where
+  the stack has one).
+
 ## [1.0.0] - 2026-08-31
 
 First semver release. Brings this template to the fleet standard established
@@ -48,5 +76,6 @@ v1.2.0.
   and Rocket.Chat healthcheck, and requires `/api/info` to answer with the
   running version through Traefik.
 
-[Unreleased]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/releases/tag/v1.0.0

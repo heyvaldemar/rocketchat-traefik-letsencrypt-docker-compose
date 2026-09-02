@@ -142,7 +142,9 @@ Before exposing this to real users, check every box:
 
 ## Backups
 
-The `backups` container runs `mongodump` of the `rocketchat` database on a loop: dump → prune → sleep. Each dump is a timestamped directory under `DATA_BACKUPS_PATH`; directories older than `DATA_BACKUP_PRUNE_DAYS` are pruned. All knobs (`BACKUP_INIT_SLEEP`, `BACKUP_INTERVAL`, `DATA_BACKUP_PRUNE_DAYS`, paths) are configured via `.env` with sensible compose-level defaults (30-minute warm-up, 24-hour interval, 7-day retention).
+The `backups` container runs `mongodump` of the `rocketchat` database on a loop: dump → prune → sleep. Each dump is a single gzip-compressed archive (`<name>-<timestamp>.archive.gz`) under `DATA_BACKUPS_PATH`; archives older than `DATA_BACKUP_PRUNE_DAYS` are pruned. All knobs (`BACKUP_INIT_SLEEP`, `BACKUP_INTERVAL`, `DATA_BACKUP_PRUNE_DAYS`, paths) are configured via `.env` with sensible compose-level defaults (30-minute warm-up, 24-hour interval, 7-day retention).
+
+Each cycle logs `Database backup OK: <file> (<bytes> bytes)` or `Database backup FAILED` (the same for the data archive where there is one). A failed dump is kept as `<file>.failed` for diagnosis and never overwrites a good backup — grep the log for `FAILED` from your monitoring.
 
 **Verify backups are running:**
 
@@ -151,11 +153,13 @@ docker compose -p rocketchat logs backups | tail -5
 docker compose -p rocketchat exec backups ls /srv/rocketchat-mongodb/backups/
 ```
 
-**Restore** (destructive — restores over the live database):
+**Restore** with the interactive script (`chmod +x rocketchat-restore-database.sh` once): it lists the archives, stops Rocket.Chat, runs `mongorestore --drop --gzip --archive=<selected>`, and starts Rocket.Chat again.
 
 ```bash
-docker compose -p rocketchat exec backups mongorestore -h mongodb:27017 --db rocketchat --drop /srv/rocketchat-mongodb/backups/<backup-dir>/rocketchat
+./rocketchat-restore-database.sh
 ```
+
+Backups made before v1.1.0 are directories, not archives; restore those with `mongorestore -h mongodb:27017 --db rocketchat --drop <backup-dir>/rocketchat` from inside the backups container.
 
 **Off-host replication.** By default backups live in a named Docker volume — if the host dies, backups die with it. Bind-mount the backup path to a host directory covered by your off-host backup solution (restic, rclone, Borg, S3 sync).
 
