@@ -66,7 +66,7 @@ _(no unreleased changes yet)_
   required-variable guard fires, a backup is produced, it is a readable
   archive with real dump content (and a readable data `tar.gz` where the
   stack has one), a database outage is reported as `FAILED`, **restore
-  genuinely replaces database state** (a marker row inserted after the
+ replaces database state** (a marker row inserted after the
   baseline backup is gone after restoring it), and pruning removes only
   old files.
 
@@ -106,7 +106,7 @@ v1.2.0.
 
 ### Security
 
-- **Rocket.Chat bumped 8.1.0 → 8.7.1**, **Traefik bumped 3.2 → 3.7**:
+- **Rocket.Chat bumped 8.1.0 → 8.7.1**, Traefik bumped 3.2 → 3.7:
   Traefik 3.2's Docker client cannot talk to Docker Engine 29 (provider
   retry loop, silent 404s on current hosts). MongoDB moves to the official
   `mongo:7.0` image, digest-pinned. Two deliberate choices here: the

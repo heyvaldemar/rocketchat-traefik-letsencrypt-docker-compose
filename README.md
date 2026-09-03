@@ -17,7 +17,7 @@
 - [Security Notes](#security-notes)
 - [About the maintainer](#about-the-maintainer)
 
-This repository deploys **Rocket.Chat** behind **Traefik** with automatic **Let's Encrypt TLS**, backed by a **MongoDB replica set** (single-node, as Rocket.Chat requires), with a scheduled **mongodump backup container**. One `docker compose up` away from a self-hosted team-chat service at `https://your-domain`.
+This repository deploys Rocket.Chat behind Traefik with automatic Let's Encrypt TLS, backed by a MongoDB replica set (single-node, as Rocket.Chat requires), with a scheduled mongodump backup container. One `docker compose up` away from a self-hosted team-chat service at `https://your-domain`.
 
 📙 Full narrative installation guide on the blog: [heyvaldemar.com/install-rocket-chat-using-docker-compose/](https://www.heyvaldemar.com/install-rocket-chat-using-docker-compose/).
 
@@ -118,7 +118,7 @@ docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketcha
 
 ## Supply chain trust
 
-This repository is a **deployment template**, not a custom Docker image. It orchestrates three upstream images:
+This repository is a deployment template, not a custom Docker image. It orchestrates three upstream images:
 
 - [`traefik`](https://hub.docker.com/_/traefik): reverse proxy, Docker Hub official image
 - [`rocketchat/rocket.chat`](https://hub.docker.com/r/rocketchat/rocket.chat): Rocket.Chat upstream
@@ -128,7 +128,7 @@ All three are pinned to `tag@sha256:<digest>` as interpolation defaults in the c
 
 Two override levels exist per image. `<PREFIX>_IMAGE_VERSION` in `.env` swaps only the version of that image (Compose then pulls the tag, without a digest) and leaves every other pin as tested; `<PREFIX>_IMAGE_TAG` replaces the whole reference, digest included. The variable names are listed in `.env.example`. Nested defaults need Docker Compose v2.5 or newer (2022); v2.0 to v2.4 leave the inner `${...}` unexpanded and `docker compose up` fails with an invalid reference instead of deploying something unexpected.
 
-The daily `check-pin-freshness` CI job re-resolves each pinned tag against its registry and compares the pinned Rocket.Chat and Traefik versions against the latest upstream releases. Any drift fails the run and notifies the maintainer. CI's **Deployment Verification** workflow runs on every push, pull request, and every day at 06:00 UTC. GitHub Actions are pinned by commit SHA; Dependabot's `github-actions` ecosystem keeps those fresh.
+The daily `check-pin-freshness` CI job re-resolves each pinned tag against its registry and compares the pinned Rocket.Chat and Traefik versions against the latest upstream releases. Any drift fails the run and notifies the maintainer. CI's Deployment Verification workflow runs on every push, pull request, and every day at 06:00 UTC. GitHub Actions are pinned by commit SHA; Dependabot's `github-actions` ecosystem keeps those fresh.
 
 ## Production checklist
 
@@ -195,7 +195,7 @@ chmod +x tests/e2e-backup-restore.sh
 
 It stops the database container briefly to prove failure detection: run it on a staging copy, not on production.
 
-## Security Notes
+## Security notes
 
 - Credentials are read from `.env` at deploy time; `.env` is gitignored and the compose file fails fast on missing required variables.
 - MongoDB listens only on the internal `rocketchat-network`: it is not exposed to the host or the internet.
