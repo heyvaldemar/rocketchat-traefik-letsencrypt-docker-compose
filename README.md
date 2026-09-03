@@ -1,4 +1,4 @@
-# Rocket.Chat + Traefik + Let's Encrypt — Docker Compose
+# Rocket.Chat + Traefik + Let's Encrypt on Docker Compose
 
 [![Deployment Verification](https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -27,7 +27,7 @@ This repository deploys **Rocket.Chat** behind **Traefik** with automatic **Let'
 |------|-----------|----------------|------------|------------------------|
 | Ready to deploy in <10 min | ✅ | ❌ hours of setup | ✅ if K8s is already running | Often |
 | TLS via Let's Encrypt, auto-renewed | ✅ Traefik ACME built-in | Manual certbot | Via cert-manager | Rare |
-| MongoDB replica set auto-initialized | ✅ healthcheck bootstraps `rs0` | Manual `rs.initiate()` | Operator | Often missing — RC refuses to start |
+| MongoDB replica set auto-initialized | ✅ healthcheck bootstraps `rs0` | Manual `rs.initiate()` | Operator | Often missing: RC refuses to start |
 | Scheduled DB backups + pruning | ✅ mongodump loop | Manual cron | External | Rare |
 | Upstream images pinned by `sha256` digest | ✅ | N/A | Depends | Rare |
 | Weekly pin-freshness check in CI | ✅ | N/A | Depends | Rare |
@@ -42,7 +42,7 @@ Before you start, you need:
 
 - **A Linux server** with a public IP. Tested on Ubuntu 22.04 LTS+ and Debian 12+. Local Mac/Windows works for dev; production is Linux.
 - **Docker Engine 24+ and Docker Compose 2.20+.** Quick check: `docker version` and `docker compose version`.
-- **A domain you control,** with two `A` records pointing at your server's public IP — one for Rocket.Chat (e.g. `rocketchat.example.com`), one for the Traefik dashboard (e.g. `traefik.rocketchat.example.com`). DNS must propagate before deploy or the Let's Encrypt TLS-ALPN challenge will fail.
+- **A domain you control,** with two `A` records pointing at your server's public IP: one for Rocket.Chat (e.g. `rocketchat.example.com`), one for the Traefik dashboard (e.g. `traefik.rocketchat.example.com`). DNS must propagate before deploy or the Let's Encrypt TLS-ALPN challenge will fail.
 - **Ports 80 and 443 open** on the server's firewall and not bound by another service.
 - **~2 GB free RAM and 1 free CPU** for the running stack, plus disk for MongoDB data and backup retention.
 
@@ -101,32 +101,32 @@ docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketcha
 
 ## Features
 
-- **Rocket.Chat** latest stable (8.7.1) — team chat, channels, DMs, apps, federation-capable.
+- **Rocket.Chat** latest stable (8.7.1), team chat, channels, DMs, apps, federation-capable.
 - **MongoDB 7.0** single-node replica set, auto-initialized by the container healthcheck (Rocket.Chat requires oplog access). The 7.0 line is pinned deliberately: MongoDB 8.0 crashes on Linux kernels 6.19–7.0.13 ([SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912)), which includes current distribution kernels.
 - **Traefik v3** reverse proxy with automatic HTTP→HTTPS redirect and Let's Encrypt TLS-ALPN certificate issuance.
 - **Basic-auth protected Traefik dashboard** on a separate hostname.
 - **Scheduled `mongodump` backups** with configurable interval and retention.
 - **Healthchecks** on every service with start-order dependencies.
-- **Credentials required at deploy time** — compose fails fast if `.env` is incomplete.
+- **Credentials required at deploy time**: compose fails fast if `.env` is incomplete.
 
 ### Typical use cases
 
-- **Self-hosted Slack alternative** — teams that want chat history on their own hardware.
-- **Community chat server** — public or invite-only workspaces without per-seat SaaS pricing.
-- **Compliance-constrained messaging** — data residency requirements that rule out hosted chat.
-- **Integration hub** — webhooks, bots, and the Rocket.Chat Apps marketplace against your own instance.
+- **Self-hosted Slack alternative**: teams that want chat history on their own hardware.
+- **Community chat server**: public or invite-only workspaces without per-seat SaaS pricing.
+- **Compliance-constrained messaging**: data residency requirements that rule out hosted chat.
+- **Integration hub**: webhooks, bots, and the Rocket.Chat Apps marketplace against your own instance.
 
 ## Supply chain trust
 
 This repository is a **deployment template**, not a custom Docker image. It orchestrates three upstream images:
 
-- [`traefik`](https://hub.docker.com/_/traefik) — reverse proxy, Docker Hub official image
-- [`rocketchat/rocket.chat`](https://hub.docker.com/r/rocketchat/rocket.chat) — Rocket.Chat upstream
-- [`mongo`](https://hub.docker.com/_/mongo) — MongoDB, Docker Hub official image
+- [`traefik`](https://hub.docker.com/_/traefik): reverse proxy, Docker Hub official image
+- [`rocketchat/rocket.chat`](https://hub.docker.com/r/rocketchat/rocket.chat): Rocket.Chat upstream
+- [`mongo`](https://hub.docker.com/_/mongo): MongoDB, Docker Hub official image
 
-All three are pinned to `tag@sha256:<digest>` as interpolation defaults in the compose file's `x-images` block. Compose pulls by digest, not by tag — and `git pull` alone delivers the version combination this repository has tested, because the pins live in the tracked compose file rather than in your `.env`. Setting an `*_IMAGE_TAG` variable in `.env` overrides the default when you deliberately want a different version.
+All three are pinned to `tag@sha256:<digest>` as interpolation defaults in the compose file's `x-images` block. Compose pulls by digest, not by tag, and `git pull` alone delivers the version combination this repository has tested, because the pins live in the tracked compose file rather than in your `.env`. Setting an `*_IMAGE_TAG` variable in `.env` overrides the default when you deliberately want a different version.
 
-The daily `check-pin-freshness` CI job re-resolves each pinned tag against its registry and compares the pinned Rocket.Chat and Traefik versions against the latest upstream releases — any drift fails the run and notifies the maintainer. CI's **Deployment Verification** workflow runs on every push, pull request, and every day at 06:00 UTC. GitHub Actions are pinned by commit SHA; Dependabot's `github-actions` ecosystem keeps those fresh.
+The daily `check-pin-freshness` CI job re-resolves each pinned tag against its registry and compares the pinned Rocket.Chat and Traefik versions against the latest upstream releases. Any drift fails the run and notifies the maintainer. CI's **Deployment Verification** workflow runs on every push, pull request, and every day at 06:00 UTC. GitHub Actions are pinned by commit SHA; Dependabot's `github-actions` ecosystem keeps those fresh.
 
 ## Production checklist
 
@@ -135,16 +135,16 @@ Before exposing this to real users, check every box:
 - [ ] **Complete the setup wizard immediately after deploy.** Until the admin account exists, anyone reaching the URL can create it.
 - [ ] **Disable open registration** (Admin → Accounts) unless the workspace is meant to be public.
 - [ ] **Strong Traefik dashboard hash.** Regenerate `TRAEFIK_BASIC_AUTH` per deployment (command in `.env.example`).
-- [ ] **Host-mount the backups volume** for disaster recovery — bind `DATA_BACKUPS_PATH` to a host path covered by your off-host backup solution.
+- [ ] **Host-mount the backups volume** for disaster recovery: bind `DATA_BACKUPS_PATH` to a host path covered by your off-host backup solution.
 - [ ] **Back up uploads too.** File uploads live in the `rocketchat-uploads` volume; `mongodump` covers only the database.
 - [ ] **Verify Let's Encrypt cert issuance** in the Traefik logs on first start.
-- [ ] **Plan your upgrade path.** Rocket.Chat supports rolling forward through minor versions; read the release notes before major bumps and back up first — there is no schema downgrade.
+- [ ] **Plan your upgrade path.** Rocket.Chat supports rolling forward through minor versions; read the release notes before major bumps and back up first: there is no schema downgrade.
 
 ## Backups
 
 The `backups` container runs `mongodump` of the `rocketchat` database on a loop: dump → prune → sleep. Each dump is a single gzip-compressed archive (`<name>-<timestamp>.archive.gz`) under `DATA_BACKUPS_PATH`; archives older than `DATA_BACKUP_PRUNE_DAYS` are pruned. All knobs (`BACKUP_INIT_SLEEP`, `BACKUP_INTERVAL`, `DATA_BACKUP_PRUNE_DAYS`, paths) are configured via `.env` with sensible compose-level defaults (30-minute warm-up, 24-hour interval, 7-day retention).
 
-Each cycle logs `Database backup OK: <file> (<bytes> bytes)` or `Database backup FAILED` (the same for the data archive where there is one). A failed dump is kept as `<file>.failed` for diagnosis and never overwrites a good backup — grep the log for `FAILED` from your monitoring.
+Each cycle logs `Database backup OK: <file> (<bytes> bytes)` or `Database backup FAILED` (the same for the data archive where there is one). A failed dump is kept as `<file>.failed` for diagnosis and never overwrites a good backup: grep the log for `FAILED` from your monitoring.
 
 **Verify backups are running:**
 
@@ -161,11 +161,11 @@ docker compose -p rocketchat exec backups ls /srv/rocketchat-mongodb/backups/
 
 Backups made before v1.1.0 are directories, not archives; restore those with `mongorestore -h mongodb:27017 --db rocketchat --drop <backup-dir>/rocketchat` from inside the backups container.
 
-**Off-host replication.** By default backups live in a named Docker volume — if the host dies, backups die with it. Bind-mount the backup path to a host directory covered by your off-host backup solution (restic, rclone, Borg, S3 sync).
+**Off-host replication.** By default backups live in a named Docker volume: if the host dies, backups die with it. Bind-mount the backup path to a host directory covered by your off-host backup solution (restic, rclone, Borg, S3 sync).
 
 ## Resource limits
 
-Every service carries memory and CPU limits plus reservations as compose-level defaults — the same values CI boots the stack under. Override any of them in `.env` (the knobs and their defaults are listed in `.env.example`, e.g. `TRAEFIK_MEMORY_LIMIT=512m`) and the override survives every `git pull`. If a service is OOM-killed under real load, `docker inspect <container> --format '{{.State.OOMKilled}}'` says so; raise its `_MEMORY_LIMIT` and recreate.
+Every service carries memory and CPU limits plus reservations as compose-level defaults: the same values CI boots the stack under. Override any of them in `.env` (the knobs and their defaults are listed in `.env.example`, e.g. `TRAEFIK_MEMORY_LIMIT=512m`) and the override survives every `git pull`. If a service is OOM-killed under real load, `docker inspect <container> --format '{{.State.OOMKilled}}'` says so; raise its `_MEMORY_LIMIT` and recreate.
 
 ## Container hardening
 
@@ -175,28 +175,28 @@ Every service runs with `security_opt: no-new-privileges:true`, so a process can
 
 The [Deployment Verification](https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every day at 06:00 UTC:
 
-1. **Lint** — actionlint on the workflow.
+1. **Lint**: actionlint on the workflow.
 2. **Trivy scans** of all three pinned images (CRITICAL/HIGH, SARIF to the Security tab).
-3. **Pin freshness** (daily/manual) — digest drift against registries plus release-lag checks for Rocket.Chat and Traefik.
-4. **Deploy-and-test** — boots the full stack with ephemeral credentials, waits for the MongoDB replica set to initialize and Rocket.Chat to report healthy, then requires `/api/info` to answer with the running version through Traefik before the run may pass.
+3. **Pin freshness** (daily/manual): digest drift against registries plus release-lag checks for Rocket.Chat and Traefik.
+4. **Deploy-and-test**: boots the full stack with ephemeral credentials, waits for the MongoDB replica set to initialize and Rocket.Chat to report healthy, then requires `/api/info` to answer with the running version through Traefik before the run may pass.
 
-A green run is the authoritative proof that the shipped configuration produces a working instance — not just started containers.
+A green run is the authoritative proof that the shipped configuration produces a working instance, not just started containers.
 
 ### Backup and restore, proven
 
-`tests/e2e-backup-restore.sh` runs against the live stack and is what CI executes after the HTTPS smoke. The scenario that matters most is the restore roundtrip: insert a marker row, restore the earliest backup, assert the marker is gone — a backup that cannot be restored fails the build. Run it yourself against a running deployment with short intervals in `.env` (`BACKUP_INIT_SLEEP=15s`, `BACKUP_INTERVAL=60s`):
+`tests/e2e-backup-restore.sh` runs against the live stack and is what CI executes after the HTTPS smoke. The scenario that matters most is the restore roundtrip: insert a marker row, restore the earliest backup, assert the marker is gone. A backup that cannot be restored fails the build. Run it yourself against a running deployment with short intervals in `.env` (`BACKUP_INIT_SLEEP=15s`, `BACKUP_INTERVAL=60s`):
 
 ```bash
 chmod +x tests/e2e-backup-restore.sh
 ./tests/e2e-backup-restore.sh
 ```
 
-It stops the database container briefly to prove failure detection — run it on a staging copy, not on production.
+It stops the database container briefly to prove failure detection: run it on a staging copy, not on production.
 
 ## Security Notes
 
 - Credentials are read from `.env` at deploy time; `.env` is gitignored and the compose file fails fast on missing required variables.
-- MongoDB listens only on the internal `rocketchat-network` — it is not exposed to the host or the internet.
+- MongoDB listens only on the internal `rocketchat-network`: it is not exposed to the host or the internet.
 - Upstream image digests are pinned; the daily freshness job flags drift loudly.
 - CI runs on every push and every day to catch upstream drift.
 
@@ -206,7 +206,7 @@ It stops the database container briefly to prove failure detection — run it on
 
 <div align="center">
 
-**Maintained by [Vladimir Mikhalev](https://github.com/heyvaldemar)** — Docker Captain · IBM Champion · AWS Community Builder
+**Maintained by [Vladimir Mikhalev](https://github.com/heyvaldemar)** · Docker Captain · IBM Champion · AWS Community Builder
 
 [YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1) · [Blog](https://heyvaldemar.com) · [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)
 

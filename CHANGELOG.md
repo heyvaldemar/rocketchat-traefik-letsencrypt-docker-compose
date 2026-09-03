@@ -41,7 +41,7 @@ _(no unreleased changes yet)_
 
 ### Added
 
-- **`tests/e2e-backup-restore.sh`** — seven end-to-end scenarios against
+- **`tests/e2e-backup-restore.sh`**: seven end-to-end scenarios against
   the live stack, run by CI on every push and by you locally: the
   required-variable guard fires, a backup is produced, it is a readable
   archive with real dump content (and a readable data `tar.gz` where the
@@ -72,7 +72,7 @@ _(no unreleased changes yet)_
 
 ### Added
 
-- `rocketchat-restore-database.sh` — interactive restore: lists archives,
+- `rocketchat-restore-database.sh`: interactive restore: lists archives,
   stops Rocket.Chat, `mongorestore --drop --gzip --archive`, starts it.
 - CI now waits for the first backup cycle and proves the produced
   archive is readable (plus a readable `tar.gz` for the data backup where
@@ -86,13 +86,13 @@ v1.2.0.
 
 ### Security
 
-- **Rocket.Chat bumped 8.1.0 → 8.7.1**, **Traefik bumped 3.2 → 3.7** —
+- **Rocket.Chat bumped 8.1.0 → 8.7.1**, **Traefik bumped 3.2 → 3.7**:
   Traefik 3.2's Docker client cannot talk to Docker Engine 29 (provider
   retry loop, silent 404s on current hosts). MongoDB moves to the official
   `mongo:7.0` image, digest-pinned. Two deliberate choices here: the
   previously used `mongodb/mongodb-community-server:8.0` image cannot run
   on Linux kernels 6.19+, and MongoDB 8.0 itself crashes on kernels
-  6.19–7.0.13 (tcmalloc rseq bug, SERVER-121912) — the 7.0 line is
+  6.19-7.0.13 (tcmalloc rseq bug, SERVER-121912): the 7.0 line is
   unaffected and officially supported by Rocket.Chat.
 - **All three images pinned by `tag@sha256:digest`.**
 - `.env` untracked and gitignored; `.env.example` documents every value,
