@@ -126,7 +126,7 @@ This repository is a **deployment template**, not a custom Docker image. It orch
 
 All three are pinned to `tag@sha256:<digest>` as interpolation defaults in the compose file's `x-images` block. Compose pulls by digest, not by tag — and `git pull` alone delivers the version combination this repository has tested, because the pins live in the tracked compose file rather than in your `.env`. Setting an `*_IMAGE_TAG` variable in `.env` overrides the default when you deliberately want a different version.
 
-The weekly `check-pin-freshness` CI job re-resolves each pinned tag against its registry and compares the pinned Rocket.Chat and Traefik versions against the latest upstream releases — any drift fails the run and notifies the maintainer. CI's **Deployment Verification** workflow runs on every push, pull request, and every Monday at 06:00 UTC. GitHub Actions are pinned by commit SHA; Dependabot's `github-actions` ecosystem keeps those fresh.
+The daily `check-pin-freshness` CI job re-resolves each pinned tag against its registry and compares the pinned Rocket.Chat and Traefik versions against the latest upstream releases — any drift fails the run and notifies the maintainer. CI's **Deployment Verification** workflow runs on every push, pull request, and every day at 06:00 UTC. GitHub Actions are pinned by commit SHA; Dependabot's `github-actions` ecosystem keeps those fresh.
 
 ## Production checklist
 
@@ -169,11 +169,11 @@ Every service carries memory and CPU limits plus reservations as compose-level d
 
 ## Testing
 
-The [Deployment Verification](https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every Monday at 06:00 UTC:
+The [Deployment Verification](https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every day at 06:00 UTC:
 
 1. **Lint** — actionlint on the workflow.
 2. **Trivy scans** of all three pinned images (CRITICAL/HIGH, SARIF to the Security tab).
-3. **Pin freshness** (weekly/manual) — digest drift against registries plus release-lag checks for Rocket.Chat and Traefik.
+3. **Pin freshness** (daily/manual) — digest drift against registries plus release-lag checks for Rocket.Chat and Traefik.
 4. **Deploy-and-test** — boots the full stack with ephemeral credentials, waits for the MongoDB replica set to initialize and Rocket.Chat to report healthy, then requires `/api/info` to answer with the running version through Traefik before the run may pass.
 
 A green run is the authoritative proof that the shipped configuration produces a working instance — not just started containers.
@@ -193,8 +193,8 @@ It stops the database container briefly to prove failure detection — run it on
 
 - Credentials are read from `.env` at deploy time; `.env` is gitignored and the compose file fails fast on missing required variables.
 - MongoDB listens only on the internal `rocketchat-network` — it is not exposed to the host or the internet.
-- Upstream image digests are pinned; the weekly freshness job flags drift loudly.
-- CI runs on every push and every Monday to catch upstream drift.
+- Upstream image digests are pinned; the daily freshness job flags drift loudly.
+- CI runs on every push and every day to catch upstream drift.
 
 ---
 
