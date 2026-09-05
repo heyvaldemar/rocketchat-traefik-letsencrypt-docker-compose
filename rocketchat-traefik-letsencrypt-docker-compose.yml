@@ -274,11 +274,12 @@ services:
         STAMP="$$(date +%Y-%m-%d_%H-%M)";
         DB_FILE="$$DATA_BACKUPS_PATH/$$DATA_BACKUP_NAME-$$STAMP.archive.gz";
         echo "[$$(date -Iseconds)] Starting database backup to $$DB_FILE";
-        if mongodump -h mongodb:27017 --db rocketchat --archive="$$DB_FILE" --gzip; then
+        if mongodump -h mongodb:27017 --db rocketchat --archive="$$DB_FILE.partial" --gzip; then
+          mv "$$DB_FILE.partial" "$$DB_FILE";
           echo "[$$(date -Iseconds)] Database backup OK: $$DB_FILE ($$(stat -c %s "$$DB_FILE") bytes)";
         else
           echo "[$$(date -Iseconds)] Database backup FAILED - partial file kept as $$DB_FILE.failed for diagnosis" >&2;
-          mv "$$DB_FILE" "$$DB_FILE.failed" 2>/dev/null || true;
+          mv "$$DB_FILE.partial" "$$DB_FILE.failed" 2>/dev/null || true;
         fi;
         if [ "$${DATA_BACKUP_PRUNE_DAYS:-0}" -ge 1 ]; then
           find "$$DATA_BACKUPS_PATH" -type f -name "$$DATA_BACKUP_NAME-*" -mtime "+$$DATA_BACKUP_PRUNE_DAYS" -delete;
