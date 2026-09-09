@@ -78,7 +78,7 @@ docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketcha
 
 # The API answers with the running version:
 curl -fsS "https://${ROCKETCHAT_HOSTNAME}/api/info"
-# Expected: {"info":{"version":"8.7.1"},...}
+# Expected: {"info":{"version":"8.8.1"},...}
 
 # Traefik issued a certificate:
 docker compose -p rocketchat logs traefik | grep -i "adding certificate"
@@ -102,7 +102,7 @@ docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketcha
 
 ## Features
 
-- **Rocket.Chat** latest stable (8.7.1), team chat, channels, DMs, apps, federation-capable.
+- **Rocket.Chat** latest stable (8.8.1), team chat, channels, DMs, apps, federation-capable.
 - **MongoDB 7.0** single-node replica set, auto-initialized by the container healthcheck (Rocket.Chat requires oplog access). The 7.0 line is pinned deliberately: MongoDB 8.0 crashes on Linux kernels 6.19–7.0.13 ([SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912)), which includes current distribution kernels.
 - **Traefik v3** reverse proxy with automatic HTTP→HTTPS redirect and Let's Encrypt TLS-ALPN certificate issuance.
 - **Basic-auth protected Traefik dashboard** on a separate hostname.
