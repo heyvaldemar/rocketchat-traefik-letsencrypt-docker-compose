@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.7.4] - 2026-09-15
+
 ### Security
 
 - **`mongo:7.0` was rebuilt upstream**; the pin moved from `sha256:b096b4cb9269…` to `sha256:9854f7139445…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
@@ -170,7 +174,8 @@ v1.2.0.
   and Rocket.Chat healthcheck, and requires `/api/info` to answer with the
   running version through Traefik.
 
-[Unreleased]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.7.3...HEAD
+[Unreleased]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.7.4...HEAD
+[1.7.4]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.7.3...v1.7.4
 [1.7.3]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.7.2...v1.7.3
 [1.7.2]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.7.1...v1.7.2
 [1.7.1]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.7.0...v1.7.1
