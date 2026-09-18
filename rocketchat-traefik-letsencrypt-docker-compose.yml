@@ -6,7 +6,7 @@
 # CI (Trivy scans, check-pin-freshness, the ephemeral test .env) reads
 # the pins from these lines — this block is the single source of truth.
 x-images:
-  traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:${TRAEFIK_IMAGE_VERSION:-3.7@sha256:f86a2cab1b5c649070c49f883c743dd32d8485a56e3368c5f93b9e91f1e91259}}
+  traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:${TRAEFIK_IMAGE_VERSION:-3.7@sha256:1c32e7c368204fd72812152ebdd2ac0425993df6fd982317deb02e48f2d5423c}}
   mongodb: &mongodb-image ${ROCKETCHAT_MONGODB_IMAGE_TAG:-mongo:${ROCKETCHAT_MONGODB_IMAGE_VERSION:-7.0@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca}}
   rocketchat: &rocketchat-image ${ROCKETCHAT_IMAGE_TAG:-rocketchat/rocket.chat:${ROCKETCHAT_IMAGE_VERSION:-8.8.1@sha256:95eabcfef9cb83b1feaace8c68f96d0201fbd9873462394dbf8a33618b7f9f03}}
 
