@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A restore left behind whatever was created after the backup.** It used
+  `mongorestore --drop`, which replaces only the collections the archive
+  holds, so a collection added since the backup survived the restore; the
+  test knew and worked around it instead of catching it. The script now drops
+  the database before loading the archive, takes the backup directory and
+  name from the running backups container, accepts the file name as an
+  argument, starts Rocket.Chat again whatever happens, and CI runs it: a
+  document added after the backup and a collection created after it must both
+  be gone once it is restored.
+
 ### Changed
 
 - **The freshness check has its own workflow, Pin Freshness.** It ran inside Deployment Verification, whose badge is the one at the top of this README. Across the fleet, nine red runs in ten were a pin one version behind - which the fleet's triage moves within the day - and a reader cannot tell that from a stack that does not boot. The badge now says whether the stack boots. The job itself is unchanged.

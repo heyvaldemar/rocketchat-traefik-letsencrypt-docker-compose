@@ -103,12 +103,8 @@ mongo_run() {
 db_ready() {
   [[ "$(docker exec "$DB_CONTAINER" mongosh --quiet --eval 'db.runCommand({ping:1}).ok' 2>/dev/null | tr -d '[:space:]')" == "1" ]]
 }
-db_restore() {
-  backups_sh "mongorestore -h $DB_HOST --db $DB_NAME --drop --gzip --archive=$1 > /dev/null 2>&1"
-}
-# mongorestore --drop only replaces collections present in the archive, so
-# the marker collection must exist BEFORE the baseline backup is taken:
-# after restore it carries the archived document count again.
+# The marker collection exists BEFORE the baseline backup is taken, so after
+# a restore it carries the archived document count again.
 marker_create() { mongo_run 'db.e2e_marker.insertOne({seed: 1})' > /dev/null; }
 marker_insert() { mongo_run 'db.e2e_marker.insertOne({extra: 1})' > /dev/null; }
 marker_count() { mongo_run 'db.e2e_marker.countDocuments()' | tr -d '[:space:]'; }
@@ -223,9 +219,16 @@ test_restore_roundtrip() {
   marker_insert
   before=$(marker_count)
   [[ "$before" -ge 1 ]] || { fail "marker insert failed: count=$before"; return 1; }
-  echo "  restoring the baseline"
-  db_restore "$baseline" || { fail "restore commands failed"; return 1; }
+  # A collection that did not exist at backup time must not survive either:
+  # mongorestore --drop alone leaves it, which is what the script used to do.
+  mongo_run 'db.e2e_after.insertOne({x: 1})' > /dev/null
+  # THE SHIPPED SCRIPT, NOT A COPY OF ITS COMMANDS.
+  echo "  restoring the baseline with ./rocketchat-restore-database.sh"
+  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" ./rocketchat-restore-database.sh "$(basename "$baseline")" \
+    || { fail "the shipped restore script failed"; return 1; }
   marker_gone || { fail "marker still present after restore - restore was a no-op"; return 1; }
+  [[ "$(mongo_run 'db.e2e_after.countDocuments()' | tr -d '[:space:]')" == "0" ]] \
+    || { fail "a collection created after the backup survived the restore"; return 1; }
   echo "  marker absent after restore - the backup is restorable"
 }
 

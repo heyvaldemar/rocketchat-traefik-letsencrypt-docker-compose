@@ -160,7 +160,7 @@ docker compose -p rocketchat logs backups | tail -5
 docker compose -p rocketchat exec backups ls /srv/rocketchat-mongodb/backups/
 ```
 
-**Restore** with the interactive script (`chmod +x rocketchat-restore-database.sh` once): it lists the archives, stops Rocket.Chat, runs `mongorestore --drop --gzip --archive=<selected>`, and starts Rocket.Chat again.
+**Restore** with the script: it lists the archives and asks, or takes a file name as its argument, stops Rocket.Chat, drops the `rocketchat` database, loads the archive with `mongorestore --gzip`, and starts Rocket.Chat again. It reads the backup directory and name from the running backups container, and CI runs it on every push. Dropping the database first matters: `mongorestore --drop` alone replaces only the collections the archive holds, and leaves anything created since.
 
 ```bash
 ./rocketchat-restore-database.sh
