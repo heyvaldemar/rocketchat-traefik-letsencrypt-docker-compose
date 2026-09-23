@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.7.7] - 2026-09-23
+
 ### Fixed
 
 - **A restore left behind whatever was created after the backup.** It used
