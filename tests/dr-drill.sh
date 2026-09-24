@@ -35,6 +35,10 @@
 #   DB_RESTORE       the shipped command, with "$F" for the dump's file name
 #                    and "$S" for the cycle stamp in it
 #   DATA_RESTORE     the same for the data archive (optional)
+#   DR_IGNORE_SERVICES  services whose state does not count (a Beszel agent
+#                    with no key restarts by design; CI ignores it too)
+#   DR_KEEP          paths an operator keeps off the host besides .env, such
+#                    as Authelia's secret files, carried to the clean machine
 #   DR_FROM          the release the backup is taken on (before only)
 #   DR_DIAG          optional: a command whose output explains a failed answer
 set -Eeuo pipefail
@@ -77,7 +81,8 @@ sql() {  # one statement against the application's database, from the backups co
 mark_write() {
   case "$DB_ENGINE" in
     mongo) sql "db.dr_marker.deleteMany({}); db.dr_marker.insertOne({v: '$MARK'});" > /dev/null ;;
-    mssql) sql "IF DB_ID(N'$(val "$DB_NAME_ENV")') IS NULL CREATE DATABASE [$(val "$DB_NAME_ENV")];" > /dev/null || true
+    mssql) # the drill's own database, made from master: a connection to a database that is not there yet cannot create it
+           bk "/opt/mssql-tools18/bin/sqlcmd -S '$DB_HOST' -U sa -P $(pass_expr) -C -b -d master -Q \"IF DB_ID(N'$(val "$DB_NAME_ENV")') IS NULL CREATE DATABASE [$(val "$DB_NAME_ENV")];\"" > /dev/null
            sql "IF OBJECT_ID('dr_marker') IS NULL CREATE TABLE dr_marker (v varchar(80)); DELETE FROM dr_marker; INSERT INTO dr_marker VALUES ('$MARK');" > /dev/null ;;
     *) sql "CREATE TABLE IF NOT EXISTS dr_marker (v varchar(80)); DELETE FROM dr_marker; INSERT INTO dr_marker VALUES ('$MARK');" > /dev/null ;;
   esac
@@ -109,7 +114,7 @@ wait_healthy() {  # every container running and healthy, or a one-shot that exit
   local file="$1" bad=""
   for _ in $(seq 1 90); do
     bad="$(docker compose -f "$file" -p "$PROJECT" ps -a --format json \
-      | jq -rs '[.[] | select((.State == "running" and (.Health == "" or .Health == "healthy")) or (.State == "exited" and .ExitCode == 0) | not)] | map("\(.Service):\(.State)/\(.Health)") | join(" ")')"
+      | jq -rs --arg ignore " ${DR_IGNORE_SERVICES:-} " '[.[] | . as $c | select(($ignore | contains(" " + $c.Service + " ")) | not) | select((.State == "running" and (.Health == "" or .Health == "healthy")) or (.State == "exited" and .ExitCode == 0) | not)] | map("\(.Service):\(.State)/\(.Health)") | join(" ")')"
     [ -z "$bad" ] && return 0
     sleep 10
   done
@@ -130,7 +135,7 @@ wait_backup_started_after() {  # directory variable, file regex, marker minute, 
   local dir pat f waited=0
   dir="$(env_of "$1")"; pat="$(expand "$2")"
   while [ "$waited" -lt 900 ]; do
-    for f in $(bk "ls -1 '$dir'" | grep -E "$pat" | sort -r); do
+    for f in $(bk "ls -1 '$dir'" | grep -E -e "$pat" | sort -r); do
       [ "$(printf '%s' "$f" | cycle_of)" \> "$3" ] || continue
       if docker logs "$(cid backups)" 2>&1 | grep -qiF "backup OK: $dir/$f"; then
         say "backup started after the markers: $f"; return 0
@@ -144,7 +149,7 @@ wait_backup_started_after() {  # directory variable, file regex, marker minute, 
 
 newest() {  # the newest exported file matching a pattern, by name: the names carry the time
   local pat; pat="$(expand "$2")"
-  find "$OUT/$1" -maxdepth 1 -type f -printf '%f\n' | grep -E "$pat" | sort | tail -n 1
+  find "$OUT/$1" -maxdepth 1 -type f -printf '%f\n' | grep -E -e "$pat" | sort | tail -n 1
 }
 
 explain() {  # what a failed restore looks like from the inside
@@ -166,6 +171,13 @@ before() {
   # Keycloak's deploy job carries the production 30m/24h, and a drill that
   # waits a day for its first backup is not a drill.
   sed -i -E 's/^([A-Z_]*BACKUP_INIT_SLEEP)=.*/\1=15s/; s/^([A-Z_]*BACKUP_INTERVAL)=.*/\1=60s/' .env
+  # An .env that never names the interval leaves the compose default of a day;
+  # every prefix the compose file gives the two variables is set here.
+  local p
+  for p in $(grep -oE '\$\{[A-Z_]*BACKUP_INIT_SLEEP' "$DOCKER_COMPOSE_FILE" | sed 's/^\${//; s/BACKUP_INIT_SLEEP$//' | sort -u); do
+    grep -q "^${p}BACKUP_INIT_SLEEP=" .env || echo "${p}BACKUP_INIT_SLEEP=15s" >> .env
+    grep -q "^${p}BACKUP_INTERVAL=" .env || echo "${p}BACKUP_INTERVAL=60s" >> .env
+  done
   git show "$DR_FROM:$DOCKER_COMPOSE_FILE" > "$from_file"
   say "starting $DR_FROM, the release this host was running"
   docker compose -f "$from_file" -p "$PROJECT" up -d
@@ -188,6 +200,11 @@ before() {
     mkdir -p "$OUT/$v"
     docker cp "$(cid backups):$dir/." "$OUT/$v/"
   done
+  local k
+  for k in ${DR_KEEP:-}; do
+    mkdir -p "$OUT/keep/$(dirname "$k")"
+    cp -a "$k" "$OUT/keep/$k"
+  done
   printf '%s\n' "$MARK" > "$OUT/marker"
   printf '%s\n' "$DR_FROM" > "$OUT/from"
   du -sh "$OUT"
@@ -202,6 +219,10 @@ after() {
   if [ -z "$to" ] || ! git diff --quiet "$to" HEAD -- "$DOCKER_COMPOSE_FILE"; then to="main"; fi
   MARK="$(cat "$OUT/marker")"
   cp "$OUT/env" .env
+  local k
+  for k in ${DR_KEEP:-}; do
+    rm -rf "$k"; mkdir -p "$(dirname "$k")"; cp -a "$OUT/keep/$k" "$k"
+  done
   # THE NEW HOST'S BACKUP LOOP STARTS WITH THE STACK. With CI's 15-second
   # warm-up its first cycle wrote an empty backup into the same directory
   # before the restore ran, the drill restored "the newest file", which was
