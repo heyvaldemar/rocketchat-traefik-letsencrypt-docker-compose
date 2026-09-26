@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.8.0] - 2026-09-26
+
 ### Added
 
 - **Traefik's timeouts on the HTTPS entry point can be set from `.env`.**
@@ -212,7 +216,8 @@ v1.2.0.
   and Rocket.Chat healthcheck, and requires `/api/info` to answer with the
   running version through Traefik.
 
-[Unreleased]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.7.6...HEAD
+[Unreleased]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.7.7...v1.8.0
 [1.7.6]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.7.5...v1.7.6
 [1.7.5]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.7.4...v1.7.5
 [1.7.4]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.7.3...v1.7.4
