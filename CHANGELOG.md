@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **`rocketchat/rocket.chat:8.8.1` moved to `rocketchat/rocket.chat:8.9.0`.** The freshness check reported the lag; the deploy job booted the stack on the new image before this landed.
+  MongoDB stays on 7.0. The 8.9.0 notes list `MongoDB: 8.0` under engine versions, as the 8.8.1 notes did, and the startup check is
+  byte-for-byte the one 8.8.1 runs: it exits only below 7.0 and logs a deprecation for 7.x, because 9.0.0 drops it. MongoDB 8.0 is
+  still not a drop-in: it exits at startup on kernels 6.19 and later unless the kernel is 7.0.14 or newer, and it recognises Ubuntu's
+  own 7.0 kernels only from 8.0.35, while the newest `mongo:8.0` image is 8.0.32. That move belongs with Rocket.Chat 9.0.0.
 
 ### Fixed
 
