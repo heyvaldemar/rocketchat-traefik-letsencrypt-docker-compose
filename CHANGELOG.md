@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.8.2] - 2026-10-06
+
 ### Changed
 
 - **`rocketchat/rocket.chat:8.8.1` moved to `rocketchat/rocket.chat:8.9.0`.** The freshness check reported the lag; the deploy job booted the stack on the new image before this landed.
@@ -233,7 +237,8 @@ v1.2.0.
   and Rocket.Chat healthcheck, and requires `/api/info` to answer with the
   running version through Traefik.
 
-[Unreleased]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.8.2...HEAD
+[1.8.2]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.7.7...v1.8.0
 [1.7.6]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.7.5...v1.7.6
