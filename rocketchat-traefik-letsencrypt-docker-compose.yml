@@ -8,7 +8,7 @@
 x-images:
   traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:${TRAEFIK_IMAGE_VERSION:-3.7@sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0}}
   mongodb: &mongodb-image ${ROCKETCHAT_MONGODB_IMAGE_TAG:-mongo:${ROCKETCHAT_MONGODB_IMAGE_VERSION:-7.0@sha256:1f995ad6fdb93244a1addab1b58f934a0bc2f5643c38e02f5e9d7f0c7d227a7b}}
-  rocketchat: &rocketchat-image ${ROCKETCHAT_IMAGE_TAG:-rocketchat/rocket.chat:${ROCKETCHAT_IMAGE_VERSION:-8.8.1@sha256:95eabcfef9cb83b1feaace8c68f96d0201fbd9873462394dbf8a33618b7f9f03}}
+  rocketchat: &rocketchat-image ${ROCKETCHAT_IMAGE_TAG:-rocketchat/rocket.chat:${ROCKETCHAT_IMAGE_VERSION:-8.9.0@sha256:295f7b2c38fc3542024dc404f887eb2e13276b66e5854d31d86bcd069f6ce6dc}}
 
 networks:
   rocketchat-network:
