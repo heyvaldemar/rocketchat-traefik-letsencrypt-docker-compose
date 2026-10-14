@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **`mongo:7.0` was rebuilt upstream**; the pin moved from `sha256:1f995ad6fdb9…` to `sha256:9650758f83af…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
+
 ### Added
 
 - **CI fails on an anonymous volume.** A `VOLUME` an image declares and no mount covers becomes an anonymous volume: never backed up, and replaced by an empty one on `down`/`up`. The deployment verification now inspects every container it starts and fails on one, unless `.github/anonymous-volumes` lists it with the reason. GLPI's data lived in exactly such a volume from 2026-08-31 to 2026-10-11.
