@@ -277,8 +277,8 @@ jobs:
             exit 0
           fi
           mdb="$(docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps -q mongodb)"
-          fcv="$(docker exec "$mdb" mongosh --quiet --eval 'db.adminCommand({getParameter: 1, featureCompatibilityVersion: 1}).featureCompatibilityVersion.version')"
-          echo "MongoDB $new_line ran this whole job on featureCompatibilityVersion $fcv"
+          ran="$(docker exec "$mdb" mongosh --quiet --eval 'print(db.version() + " on featureCompatibilityVersion " + db.adminCommand({getParameter: 1, featureCompatibilityVersion: 1}).featureCompatibilityVersion.version)')"
+          echo "MongoDB $ran ran this whole job, on kernel $(uname -r)"
           vol="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data/db"}}{{.Name}}{{end}}{{end}}' "$mdb")"
           docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" stop rocketchat backups mongodb
           docker run -d --name going-back -v "$vol:/data/db" "$old_img" mongod --bind_ip 127.0.0.1 --wiredTigerCacheSizeGB 0.25 > /dev/null
