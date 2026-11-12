@@ -7,7 +7,7 @@
 # the pins from these lines — this block is the single source of truth.
 x-images:
   traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:${TRAEFIK_IMAGE_VERSION:-3.7@sha256:c1ea95f3b3eab04ba8868d201b8494e12284e424f7cec2127e3194bca1c6641c}}
-  mongodb: &mongodb-image ${ROCKETCHAT_MONGODB_IMAGE_TAG:-mongo:${ROCKETCHAT_MONGODB_IMAGE_VERSION:-7.0@sha256:8bb4442761a63a8dda452744082cdac9644b429807eb977b42324a63cef59ca4}}
+  mongodb: &mongodb-image ${ROCKETCHAT_MONGODB_IMAGE_TAG:-mongo:${ROCKETCHAT_MONGODB_IMAGE_VERSION:-7.0@sha256:6c126fa33b12bce7e51580f3e6d689da36ae7ebb49ae44ff83095665023d1ecd}}
   rocketchat: &rocketchat-image ${ROCKETCHAT_IMAGE_TAG:-rocketchat/rocket.chat:${ROCKETCHAT_IMAGE_VERSION:-8.9.1@sha256:180984d4a2b0e9348484f662cf9c34f549aacbe744e0ad907ccb871e85475f0d}}
 
 networks:
