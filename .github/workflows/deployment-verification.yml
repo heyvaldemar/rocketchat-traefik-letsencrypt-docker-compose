@@ -259,6 +259,43 @@ jobs:
             sleep 10
           done'
 
+      - name: Going back is a checkout — the previous release's MongoDB still opens this data
+        # A release that moves MongoDB to its next line leaves the data's
+        # featureCompatibilityVersion at the old line, so the previous release
+        # still opens what this one ran on, and going back needs no restore.
+        # Here the previous release's mongod is started on this run's data
+        # volume, after the upgrade and every test above, and must open the
+        # rocketchat database. Skipped when both releases run the same line.
+        run: |
+          line() { sed -nE 's/.*mongodb-image .*ROCKETCHAT_MONGODB_IMAGE_VERSION:-([0-9]+\.[0-9]+)@(sha256:[0-9a-f]{64}).*/\1 mongo:\1@\2/p'; }
+          prev="$(git tag -l 'v*' --sort=-v:refname | head -1)"
+          old_line=""; old_img=""; new_line=""
+          if [ -n "$prev" ]; then read -r old_line old_img < <(git show "$prev:$DOCKER_COMPOSE_FILE" | line) || true; fi
+          read -r new_line _ < <(line < "$DOCKER_COMPOSE_FILE")
+          if [ -z "$old_line" ] || [ "$old_line" = "$new_line" ]; then
+            echo "${prev:-no previous release} runs MongoDB ${old_line:-(none)}, this one $new_line: no line to go back across"
+            exit 0
+          fi
+          mdb="$(docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps -q mongodb)"
+          fcv="$(docker exec "$mdb" mongosh --quiet --eval 'db.adminCommand({getParameter: 1, featureCompatibilityVersion: 1}).featureCompatibilityVersion.version')"
+          echo "MongoDB $new_line ran this whole job on featureCompatibilityVersion $fcv"
+          vol="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data/db"}}{{.Name}}{{end}}{{end}}' "$mdb")"
+          docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" stop rocketchat backups mongodb
+          docker run -d --name going-back -v "$vol:/data/db" "$old_img" mongod --bind_ip 127.0.0.1 --wiredTigerCacheSizeGB 0.25 > /dev/null
+          out=""
+          for _ in $(seq 1 30); do
+            out="$(docker exec going-back mongosh --quiet --eval 'print(db.version() + " " + db.getSiblingDB("rocketchat").getCollectionNames().length)' 2>/dev/null)" && break
+            out=""; sleep 2
+          done
+          [ -n "$out" ] || docker logs --tail 30 going-back
+          docker rm -f going-back > /dev/null
+          read -r ver colls <<<"$out"
+          if [ "${ver%.*}" != "$old_line" ] || [ "${colls:-0}" -lt 1 ]; then
+            echo "::error::MongoDB $old_line from $prev does not open the data $new_line ran on (got: ${out:-no answer}). Going back would need a restore: the featureCompatibilityVersion must stay at $old_line until a later release raises it."
+            exit 1
+          fi
+          echo "MongoDB $ver from $prev opens the data, $colls collections in rocketchat: going back is a checkout of $prev"
+
       - name: Show container logs on failure
         if: failure()
         run: docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" logs
