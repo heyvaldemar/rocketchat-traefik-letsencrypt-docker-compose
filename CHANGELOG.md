@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Changed
+
+- **MongoDB 7.0 moved to 8.0** (`mongo:8.0`, 8.0.38), for the database and for the backups container that dumps it. Rocket.Chat 8.x documents MongoDB 8.0 or later as its requirement, the 8.9.1 and 9.0.0 notes list `MongoDB: 8.0` under engine versions, and on 7.0 every start logs that support for it is going away. The 7.0 line was kept while MongoDB 8 refused Ubuntu's own 7.0 kernels; 8.0.37 recognises the ones that carry the fix ([SERVER-131779](https://jira.mongodb.org/browse/SERVER-131779)). The data keeps featureCompatibilityVersion 7.0: MongoDB 8.0 runs on it and 7.0 still opens it, so going back is a checkout. A later release raises it to 8.0.
+
+### Added
+
+- **CI proves the way back.** Whenever this release and the previous one run different MongoDB lines, the deployment verification ends by starting the previous release's mongod on the data the new one ran on, and requires it to open the database.
+
+### Before upgrading from MongoDB 7.0
+
+- **Check the kernel.** MongoDB 8 stops at startup on Linux kernels 6.19.0 through 7.0.13 ([SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912)), Docker Desktop's 7.0.12 among them; 7.0.14 and later are fine, and so are Ubuntu's own 7.0 kernels that carry the fix. `docker run --rm --entrypoint mongod mongo:8.0 --version` prints `db version v8.0.38` on a kernel it accepts and the reason on one it refuses. On such a host, set `ROCKETCHAT_MONGODB_IMAGE_VERSION=7.0` in `.env` before updating. `./update.sh` from v1.9.0 on runs this check itself and stops.
+- **Have a backup from today.** `./update.sh` from v1.9.0 on writes one. Updating with `git pull` instead, write it yourself: `docker compose -p rocketchat exec backups bash -c 'mongodump -h mongodb:27017 --db rocketchat --gzip --archive="$DATA_BACKUPS_PATH/$DATA_BACKUP_NAME-$(date +%Y-%m-%d_%H-%M)-before-mongodb-8.0.archive.gz"'`. The scheduled pruning removes it after `DATA_BACKUP_PRUNE_DAYS` (7 by default); copy it off the host to keep it longer. `./rocketchat-restore-database.sh` lists and restores it.
+- **featureCompatibilityVersion must be 7.0.** `./update.sh` from v1.9.0 on raises it. With `git pull`, check it while 7.0 still runs: `docker compose -p rocketchat exec mongodb mongosh --quiet --eval 'db.adminCommand({getParameter: 1, featureCompatibilityVersion: 1})'`. If it says 6.0, raise it first: `docker compose -p rocketchat exec mongodb mongosh --quiet --eval 'db.adminCommand({setFeatureCompatibilityVersion: "7.0", confirm: true})'`.
+- **Going back.** Until a later release raises featureCompatibilityVersion to 8.0, checking out the release you came from and running `docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketchat up -d` brings 7.0 back on the same data, with no restore.
 
 ## [1.9.0] - 2026-11-13
 
