@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Added
+
+- **`update.sh` checks a MongoDB line move before it makes one.** When the release it moves to runs MongoDB on its next line, it runs the new mongod once on this host and stops if the kernel refuses it (MongoDB 8 does not start on Linux kernels 6.19.0 through 7.0.13), raises the data's featureCompatibilityVersion to the running line if it is lower (data a 6.0 server wrote keeps 6.0 under 7.0, and 8.0 will not open it), and writes a backup named `<name>-<stamp>-before-mongodb-<line>.archive.gz` next to the scheduled ones. After `docker compose up -d` it waits for MongoDB to report healthy, or prints the checkout that goes back. The next release moves MongoDB from 7.0 to 8.0, and `update.sh` runs from the release you are on: updating to this one first is what puts these checks in front of that move.
 
 ## [1.8.18] - 2026-11-13
 

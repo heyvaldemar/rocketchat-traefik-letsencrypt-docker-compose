@@ -3,8 +3,10 @@
 #
 # Moves between RELEASE TAGS, never to an arbitrary commit: a tag is a
 # combination the repository's CI has booted and smoke-tested. Refuses to
-# cross a major version unattended, refuses to run over local changes, and
-# names any new required variable before anything has moved.
+# cross a major version unattended, refuses to run over local changes,
+# names any new required variable before anything has moved, and, when the
+# release moves MongoDB to a new version line, first checks that this host
+# can run it and backs the database up.
 #
 #   ./update.sh              update to the latest release
 #   ./update.sh --dry-run    say what would happen
@@ -89,6 +91,70 @@ if [ -n "$_new" ]; then
   fi
 fi
 
+# MONGODB VERSION LINE. A release can move MongoDB to its next line (7.0 to
+# 8.0), and three things then decide whether the database comes back:
+#  - mongod opens a data directory only when its featureCompatibilityVersion
+#    is that line or the one before. Data a 6.0 server wrote keeps 6.0 under
+#    7.0 until someone raises it, and 8.0 will not open it.
+#  - MongoDB 8 does not start at all on Linux kernels 6.19.0 to 7.0.13
+#    (SERVER-121912); on those, even `mongod --version` exits.
+#  - once the new line raises the data's version, the old one cannot open it.
+# So before anything moves: the new image's mongod runs once on this host,
+# the running database's featureCompatibilityVersion is brought up to its
+# own line if it is lower, and a backup is written next to the scheduled
+# ones. The new line then runs on the version the data already has, so the
+# old image still opens it, and going back stays a checkout.
+refuse() { echo "$1 — nothing updated" >&2; exit 5; }
+svc_id() { docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=$1" 2>/dev/null | head -n 1 || true; }
+_mdb="$(svc_id mongodb)"
+_moved=""
+if [ -n "$_mdb" ]; then
+  _next="$(mktemp ./.update-next.XXXXXX)"
+  git show "$latest:$COMPOSE_FILE" > "$_next"
+  _img="$(docker compose -f "$_next" --project-directory . -p "$PROJECT" config mongodb 2>/dev/null | sed -nE 's/^ +image: +//p' | head -n 1 || true)"
+  rm -f "$_next"
+  if [ -z "$_img" ]; then
+    [ "$DRY_RUN" = "true" ] || refuse "cannot read the MongoDB image $latest runs (docker compose config fails on it)"
+    echo "cannot read the MongoDB image $latest runs; the MongoDB checks are skipped in this dry run"
+  else
+    _cur="$(docker exec "$_mdb" mongod --version 2>/dev/null | sed -nE 's/^db version v([0-9]+\.[0-9]+).*/\1/p')"
+    docker pull -q "$_img" >/dev/null || refuse "cannot pull $_img"
+    if ! _probe="$(docker run --rm --entrypoint mongod "$_img" --version 2>&1)"; then
+      _why="$(sed -nE 's/.*"msg":"([^"]*)".*/\1/p' <<<"$_probe" | head -n 1)"; _why="${_why%.}"
+      refuse "MongoDB in $latest cannot run on this host: ${_why:-$(tail -n 1 <<<"$_probe")}. To stay on ${_cur:-the current line} past this release, set ROCKETCHAT_MONGODB_IMAGE_VERSION=${_cur:-<line>} in .env"
+    fi
+    _new="$(sed -nE 's/^db version v([0-9]+\.[0-9]+).*/\1/p' <<<"$_probe")"
+    if [ -n "$_cur" ] && [ -n "$_new" ] && [ "$_cur" != "$_new" ]; then
+      echo "MongoDB moves from $_cur to $_new, and its mongod starts on this host"
+      _fcv="$(docker exec "$_mdb" mongosh --quiet --eval 'const f = db.adminCommand({getParameter: 1, featureCompatibilityVersion: 1}).featureCompatibilityVersion; print(f.version + (f.targetVersion ? " to " + f.targetVersion : ""))' 2>/dev/null)" \
+        || refuse "the running MongoDB does not answer, and its data is about to move from $_cur to $_new"
+      if [ "$_fcv" != "$_cur" ]; then
+        if [ "$DRY_RUN" = "true" ]; then
+          echo "featureCompatibilityVersion is $_fcv: would raise it to $_cur, which $_new requires"
+        else
+          if ! _out="$(docker exec "$_mdb" mongosh --quiet --eval "let r; try { r = db.adminCommand({setFeatureCompatibilityVersion: '$_cur', confirm: true}); } catch (e) { if (!/confirm/.test(e.message)) throw e; r = db.adminCommand({setFeatureCompatibilityVersion: '$_cur'}); } if (!r.ok) { print(r.errmsg); quit(1); }" 2>&1)"; then
+            echo "$_out" >&2
+            refuse "featureCompatibilityVersion is $_fcv and could not be raised to $_cur, which $_new requires"
+          fi
+          echo "featureCompatibilityVersion raised from $_fcv to $_cur"
+        fi
+      else
+        echo "featureCompatibilityVersion is $_cur, as $_new requires"
+      fi
+      _bkp="$(svc_id backups)"
+      [ -n "$_bkp" ] || refuse "the backups container is not running, and the data is about to move from $_cur to $_new: start it first"
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "would write a backup to $(docker exec "$_bkp" printenv DATA_BACKUPS_PATH) first"
+      else
+        _file="$(docker exec "$_bkp" bash -c 'set -o pipefail; f="$DATA_BACKUPS_PATH/$DATA_BACKUP_NAME-$(date +%Y-%m-%d_%H-%M)-before-mongodb-'"$_new"'.archive.gz"; mongodump --quiet -h mongodb:27017 --db rocketchat --archive="$f.partial" --gzip && mv "$f.partial" "$f" && echo "$f"')" \
+          || refuse "the backup before the move from $_cur to $_new failed"
+        echo "backup written: $_file"
+      fi
+      _moved="$_cur"
+    fi
+  fi
+fi
+
 echo "updating $current -> $latest"
 if [ "$DRY_RUN" = "true" ]; then
   git log --oneline "HEAD..$latest^{commit}" | sed 's/^/  would apply: /'
@@ -97,5 +163,23 @@ if [ "$DRY_RUN" = "true" ]; then
 fi
 
 git checkout -q "$latest"
-docker compose -f "$COMPOSE_FILE" -p "$PROJECT" up -d --remove-orphans
+_up=0
+docker compose -f "$COMPOSE_FILE" -p "$PROJECT" up -d --remove-orphans || _up=$?
+if [ -n "$_moved" ]; then
+  # compose has already waited for a healthy database when it failed on one
+  _ok=""
+  for _ in $(seq 1 "$([ "$_up" = 0 ] && echo 36 || echo 1)"); do
+    _c="$(svc_id mongodb)"
+    if [ -n "$_c" ] && [ "$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$_c")" = healthy ]; then _ok=1; break; fi
+    sleep 5
+  done
+  if [ -z "$_ok" ]; then
+    echo "MongoDB $_new is not healthy on $latest. Its data still carries featureCompatibilityVersion $_moved, so the previous release opens it:" >&2
+    echo "  git checkout -q $current && docker compose -f $COMPOSE_FILE -p $PROJECT up -d" >&2
+    echo "The backup taken before the move is $_file" >&2
+    exit 6
+  fi
+  echo "MongoDB $_new is up, on featureCompatibilityVersion $_moved; going back is still a checkout of $current"
+fi
+[ "$_up" = 0 ] || exit "$_up"
 echo "now on $latest"
