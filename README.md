@@ -43,6 +43,7 @@ Four moving parts (Traefik + Rocket.Chat + MongoDB + backups). No Kubernetes pre
 Before you start, you need:
 
 - **A Linux server** with a public IP. Tested on Ubuntu 22.04 LTS+ and Debian 12+. Local Mac/Windows works for dev; production is Linux.
+- **A Linux kernel MongoDB 8 starts on:** anything but 6.19.0 through 7.0.13. Ubuntu's own 7.0 kernels that carry the fix count; Docker Desktop's 7.0.12 does not. `docker run --rm --entrypoint mongod mongo:8.0 --version` prints a version on a kernel it accepts and the reason on one it refuses; see [Features](#features) for running 7.0 instead.
 - **Docker Engine 24+ and Docker Compose 2.20+.** Quick check: `docker version` and `docker compose version`.
 - **A domain you control,** with two `A` records pointing at your server's public IP: one for Rocket.Chat (e.g. `rocketchat.example.com`), one for the Traefik dashboard (e.g. `traefik.rocketchat.example.com`). DNS must propagate before deploy or the Let's Encrypt TLS-ALPN challenge will fail.
 - **Ports 80 and 443 open** on the server's firewall and not bound by another service.
@@ -104,7 +105,7 @@ docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketcha
 ## Features
 
 - **Rocket.Chat** latest stable (8.9.1), team chat, channels, DMs, apps, federation-capable.
-- **MongoDB 7.0** single-node replica set, auto-initialized by the container healthcheck (Rocket.Chat requires oplog access). The 7.0 line is pinned deliberately: MongoDB 8.x exits at startup on Linux kernels 6.19 and later unless the kernel is 7.0.14 or newer ([SERVER-125742](https://jira.mongodb.org/browse/SERVER-125742)), and it recognises Ubuntu's own 7.0 kernels only from 8.0.35 ([SERVER-131779](https://jira.mongodb.org/browse/SERVER-131779)). Rocket.Chat 8.x runs on 7.0 and logs a deprecation for it; 9.0.0 will require 8.0.
+- **MongoDB 8.0** single-node replica set, auto-initialized by the container healthcheck (Rocket.Chat requires oplog access). Rocket.Chat 8.x documents MongoDB 8.0 or later as its requirement and logs a deprecation at every start on 7.0. MongoDB 8 stops at startup on Linux kernels 6.19.0 through 7.0.13 ([SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912)); it recognises Ubuntu's own 7.0 kernels that carry the fix from 8.0.37 ([SERVER-131779](https://jira.mongodb.org/browse/SERVER-131779)), the 7.0 line is not affected, and kernel 7.0.14 and later fix it. On a kernel it refuses, set `ROCKETCHAT_MONGODB_IMAGE_VERSION=7.0` in `.env`: before the first start, or on data that came up from 7.0, which keeps featureCompatibilityVersion 7.0 so 7.0 still opens it.
 - **Traefik v3** reverse proxy with automatic HTTP→HTTPS redirect and Let's Encrypt TLS-ALPN certificate issuance.
 - **Basic-auth protected Traefik dashboard** on a separate hostname.
 - **Scheduled `mongodump` backups** with configurable interval and retention.
@@ -120,7 +121,7 @@ docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketcha
 
 ## Updating
 
-`./update.sh` moves this checkout to the latest release tag — a combination this repository's CI has booted, upgraded from the previous release on the same volumes, and smoke-tested — and then runs `docker compose up -d`. It refuses to cross a major version unattended, refuses to run over local changes, and names any variable that became required since your version before anything has moved. When a release moves MongoDB to its next line, it first runs the new mongod once on this host and stops if the kernel refuses it, raises the data's featureCompatibilityVersion to the running line if it is lower, writes a backup named `…-before-mongodb-<line>.archive.gz` next to the scheduled ones, and after the update waits for MongoDB to report healthy, or prints the checkout that goes back. `./update.sh --dry-run` says what would happen. Every release cut by fleet triage also carries what upstream changed, read from its release notes against this compose file. `./update.sh --dry-run` says what would happen. Every release cut by fleet triage also carries what upstream changed, read from its release notes against this compose file.
+`./update.sh` moves this checkout to the latest release tag — a combination this repository's CI has booted, upgraded from the previous release on the same volumes, and smoke-tested — and then runs `docker compose up -d`. It refuses to cross a major version unattended, refuses to run over local changes, and names any variable that became required since your version before anything has moved. When a release moves MongoDB to its next line, it first runs the new mongod once on this host and stops if the kernel refuses it, raises the data's featureCompatibilityVersion to the running line if it is lower, writes a backup named `…-before-mongodb-<line>.archive.gz` next to the scheduled ones, and after the update waits for MongoDB to report healthy, or prints the checkout that goes back. `./update.sh --dry-run` says what would happen. Every release cut by fleet triage also carries what upstream changed, read from its release notes against this compose file.
 
 ## Supply chain trust
 
