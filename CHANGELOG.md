@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **CI proves the way back.** Whenever this release and the previous one run different MongoDB lines, the deployment verification ends by starting the previous release's mongod on the data the new one ran on, and requires it to open the database.
+- **CI proves the way back.** Whenever this release and the previous one run different MongoDB lines, the deployment verification ends by starting the previous release's mongod on the data the new one ran on, and requires it to open the database. For this release ([run 43894791080](https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/actions/runs/43894791080)), v1.9.1 came up first on MongoDB 7.0. This release then started on the same volumes as an upgrade to 8.0.38 with featureCompatibilityVersion 7.0, on kernel 7.0.0-1019-azure. The backup and restore tests passed on 8.0, and MongoDB 7.0.48 from v1.9.1 opened the data again: 86 collections in `rocketchat`.
 
 ### Before upgrading from MongoDB 7.0
 
