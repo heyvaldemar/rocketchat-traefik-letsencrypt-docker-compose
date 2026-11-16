@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.10.0] - 2026-11-16
+
 ### Changed
 
 - **MongoDB 7.0 moved to 8.0** (`mongo:8.0`, 8.0.38), for the database and for the backups container that dumps it. Rocket.Chat 8.x documents MongoDB 8.0 or later as its requirement, the 8.9.1 and 9.0.0 notes list `MongoDB: 8.0` under engine versions, and on 7.0 every start logs that support for it is going away. The 7.0 line was kept while MongoDB 8 refused Ubuntu's own 7.0 kernels; 8.0.37 recognises the ones that carry the fix ([SERVER-131779](https://jira.mongodb.org/browse/SERVER-131779)). The data keeps featureCompatibilityVersion 7.0: MongoDB 8.0 runs on it and 7.0 still opens it, so going back is a checkout. A later release raises it to 8.0.
@@ -371,7 +375,8 @@ v1.2.0.
   and Rocket.Chat healthcheck, and requires `/api/info` to answer with the
   running version through Traefik.
 
-[Unreleased]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.9.1...HEAD
+[Unreleased]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.9.1...v1.10.0
 [1.9.1]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.8.18...v1.9.0
 [1.8.18]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.8.17...v1.8.18
