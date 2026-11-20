@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Security
+
+- **`mongo:8.0` was rebuilt upstream**; the pin moved from `sha256:d97fea17ccb8…` to `sha256:479e85ced54f…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
 
 ## [1.10.0] - 2026-11-16
 
