@@ -80,7 +80,7 @@ docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketcha
 
 # The API answers with the running version:
 curl -fsS "https://${ROCKETCHAT_HOSTNAME}/api/info"
-# Expected: {"info":{"version":"8.9.1"},...}
+# Expected: {"info":{"version":"9.0.0"},...}
 
 # Traefik issued a certificate:
 docker compose -p rocketchat logs traefik | grep -i "adding certificate"
@@ -104,7 +104,7 @@ docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketcha
 
 ## Features
 
-- **Rocket.Chat** latest stable (8.9.1), team chat, channels, DMs, apps, federation-capable.
+- **Rocket.Chat** latest stable (9.0.0), team chat, channels, DMs, apps, federation-capable.
 - **MongoDB 8.0** single-node replica set, auto-initialized by the container healthcheck (Rocket.Chat requires oplog access). Rocket.Chat 8.x documents MongoDB 8.0 or later as its requirement and logs a deprecation at every start on 7.0. MongoDB 8 stops at startup on Linux kernels 6.19.0 through 7.0.13 ([SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912)); it recognises Ubuntu's own 7.0 kernels that carry the fix from 8.0.37 ([SERVER-131779](https://jira.mongodb.org/browse/SERVER-131779)), the 7.0 line is not affected, and kernel 7.0.14 and later fix it. On a kernel it refuses, set `ROCKETCHAT_MONGODB_IMAGE_VERSION=7.0` in `.env`: before the first start, or on data that came up from 7.0, which keeps featureCompatibilityVersion 7.0 so 7.0 still opens it.
 - **Traefik v3** reverse proxy with automatic HTTP→HTTPS redirect and Let's Encrypt TLS-ALPN certificate issuance.
 - **Basic-auth protected Traefik dashboard** on a separate hostname.
