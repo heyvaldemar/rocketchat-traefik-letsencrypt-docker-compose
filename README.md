@@ -80,7 +80,7 @@ docker compose -f rocketchat-traefik-letsencrypt-docker-compose.yml -p rocketcha
 
 # The API answers with the running version:
 curl -fsS "https://${ROCKETCHAT_HOSTNAME}/api/info"
-# Expected: {"info":{"version":"9.0.0"},...}
+# Expected: {...,"version":"9.0",...} (without a session it names the minor version only)
 
 # Traefik issued a certificate:
 docker compose -p rocketchat logs traefik | grep -i "adding certificate"
