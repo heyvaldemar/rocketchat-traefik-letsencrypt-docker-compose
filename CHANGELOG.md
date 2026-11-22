@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [2.0.0] - 2026-11-22
+
 ### Before upgrading
 
 - **LDAP, SAML and Custom OAuth logins stop working without a Premium licence.** That is the one disruption of this major, and `update.sh` will not cross it on its own: run `./update.sh --allow-major` after reading this. Make sure at least one administrator signs in with a local username and password first (the account the setup wizard creates does). Rocket.Chat 9.0 also removes the built-in Drupal, Facebook, GitHub Enterprise, LinkedIn, Meteor, Twitter, WordPress and Dolphin OAuth logins and Atlassian Crowd; their users keep their accounts and need another way in. Rocket.Chat's guide: [Prepare for Authentication Changes in 9.0.0](https://docs.rocket.chat/docs/prepare-for-authentication-changes-in-9-0-0).
@@ -397,7 +401,8 @@ v1.2.0.
   and Rocket.Chat healthcheck, and requires `/api/info` to answer with the
   running version through Traefik.
 
-[Unreleased]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.10.1...HEAD
+[Unreleased]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.10.1...v2.0.0
 [1.10.1]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.9.1...v1.10.0
 [1.9.1]: https://github.com/heyvaldemar/rocketchat-traefik-letsencrypt-docker-compose/compare/v1.9.0...v1.9.1
