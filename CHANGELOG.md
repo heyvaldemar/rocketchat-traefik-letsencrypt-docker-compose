@@ -7,7 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Before upgrading
+
+- **LDAP, SAML and Custom OAuth logins stop working without a Premium licence.** That is the one disruption of this major, and `update.sh` will not cross it on its own: run `./update.sh --allow-major` after reading this. Make sure at least one administrator signs in with a local username and password first (the account the setup wizard creates does). Rocket.Chat 9.0 also removes the built-in Drupal, Facebook, GitHub Enterprise, LinkedIn, Meteor, Twitter, WordPress and Dolphin OAuth logins and Atlassian Crowd; their users keep their accounts and need another way in. Rocket.Chat's guide: [Prepare for Authentication Changes in 9.0.0](https://docs.rocket.chat/docs/prepare-for-authentication-changes-in-9-0-0).
+- **Back up first; going back is a restore, not a checkout.** 9.0's migrations are one-way. Measured from 8.9.1 there are 18 of them: settings removed, the anonymous role removed and its holders deactivated, `phone` → `phones`, `freeSwitchExtension` → `sipExtension`, unused indexes dropped. The README's Updating section has the one-line dump and the restore that goes back to v1.10.x. MongoDB does not change: still 8.0 on featureCompatibilityVersion 7.0.
+- **Integrations and custom scripts.** Webhook scripts run without Babel, in strict mode (implicit globals, `this` in plain functions, `arguments.callee`, octal literals). The `Custom_Script_On_Logout`, `_Logged_Out` and `_Logged_In` settings no longer get Meteor in the page. REST answers 401 without a session and 403 for a refused request, where it often answered 400. 157 deprecated DDP methods, the `query` and `fields` parameters and `/ufs` are gone, and `POST /v1/push.token` answers with flat fields.
+
+### Changed
+
+- **Rocket.Chat 8.9.1 → 9.0.0** (`rocketchat/rocket.chat:9.0.0`, a template major). Read by hand: the [9.0.0 release notes](https://github.com/RocketChat/Rocket.Chat/releases/tag/9.0.0). Engine list: Node 24, MongoDB 8.0, which this stack already runs since v1.10.0. Beyond the changes above:
+  - Security fixes that 8.9.1 does not have: SSRF checks for Livechat triggers, NoSQL injection, message and UiKit validation, federation checks, role permissions, 2FA email limits. The image moves to Node.js 24.22.1 on Debian bookworm, which fixes a Brotli decoder out-of-bounds write (CVE-2026-111497).
+  - New: LiveKit video calls, a native XMPP server for federation, workspace-wide ABAC, a redesigned user card. New workspaces start with Omnichannel off; existing ones keep their setting.
+  - WebDAV, Gravatar, legacy federation and the Matrix bridge, and legacy GCM push are removed.
+- **`MESSAGE_MAX_PARSE_LENGTH` is set from `ROCKETCHAT_MESSAGE_MAX_PARSE_LENGTH`, default 10000**, Rocket.Chat 9.0's new default. Before 9.0 there was no limit. Longer messages render as plain text, not markdown. Workspaces on the default maximum message size (5000) never see it. `0` in `.env` brings back the old behaviour, which the compose file's fixed environment block left no way to do.
+
+### Added
+
+- **CI signs in as an administrator made before the upgrade.** The upgrade drill registers the first account on the previous release, which Rocket.Chat makes an administrator with a local password. After the upgrade, that account must sign in through the REST API and still hold the admin role (`tests/e2e-admin-survives.sh`; no password reaches a command line or the log). Measured locally from 8.9.1 to 9.0.0 on the same database: migrations 336 to 353 ran, the account signed in on 9.0 with roles `user admin`, and `/api/v1/me` without a session answered 401.
 
 ## [1.10.1] - 2026-11-21
 
