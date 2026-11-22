@@ -150,6 +150,8 @@ jobs:
         # changed containers on top of it - which is exactly what `git pull &&
         # docker compose up -d` does on a deployed host. Every smoke check that
         # follows judges the upgraded stack, not a fresh one.
+        env:
+          ADMIN_STATE: ${{ runner.temp }}/rocketchat-admin.env
         run: |
           prev="$(git ls-remote --tags --sort=-v:refname origin 'v*' | grep -v '\^{}' | head -1 | sed 's|.*refs/tags/||')"
           if [ -z "$prev" ]; then
@@ -178,7 +180,11 @@ jobs:
             docker compose -f .upgrade-drill-previous.yml -p "$COMPOSE_PROJECT_NAME" logs --tail 80
             exit 1
           fi
-          echo "$prev is up and healthy; stopping it and keeping its volumes"
+          echo "$prev is up and healthy"
+          # An administrator with a local password, made on this release, for
+          # the upgraded stack to sign in with: the first account registered.
+          ./tests/e2e-admin-survives.sh seed
+          echo "stopping $prev and keeping its volumes"
           docker compose -f .upgrade-drill-previous.yml -p "$COMPOSE_PROJECT_NAME" down
           rm -f .upgrade-drill-previous.yml
           echo "the start below is now an upgrade from $prev"
@@ -230,6 +236,21 @@ jobs:
           done'
           curl -fsk "https://$APP_HOSTNAME/api/info"
           echo
+
+      - name: The administrator made before the upgrade still signs in
+        # Rocket.Chat 9.0.0 moved LDAP, SAML and Custom OAuth behind a Premium
+        # licence and asks for one administrator who signs in with a local
+        # password before the update. The drill registered one on the previous
+        # release; on the upgraded data it must sign in through the REST API
+        # and still hold the admin role.
+        env:
+          ADMIN_STATE: ${{ runner.temp }}/rocketchat-admin.env
+        run: |
+          if [ ! -s "$ADMIN_STATE" ]; then
+            echo "the drill seeded nothing (no previous release, or an unchanged compose file): nothing to sign in with"
+            exit 0
+          fi
+          ./tests/e2e-admin-survives.sh check
 
       - name: Verify a backup is produced and valid
         # Log-driven: the file named in a 'backup OK' line is complete by
