@@ -15,7 +15,7 @@
 #   tests/e2e-admin-survives.sh seed    # against the previous release
 #   tests/e2e-admin-survives.sh check   # against the upgraded stack
 #
-# Requires: curl, python3, openssl, .env in the repository root. The account's
+# Requires: curl, python3, .env in the repository root. The account's
 # password goes to $ADMIN_STATE (mode 600); no password or token is printed,
 # and none reaches a command line.
 
@@ -81,7 +81,19 @@ login() {
 if [[ "$mode" == seed ]]; then
   ready || { echo "seed: Rocket.Chat never answered /api/info through Traefik" >&2; exit 1; }
   user="drill-admin-$RANDOM"
-  ( umask 077; openssl rand -base64 24 | tr -d '\n' > "$WORK/pass" )
+  # Rocket.Chat's default password policy wants a lowercase letter, an
+  # uppercase letter, a digit and a symbol, and refuses a character repeated
+  # in a row; a bare random string meets it only most of the time.
+  ( umask 077; python3 -c '
+import secrets, string
+classes = [string.ascii_lowercase, string.ascii_uppercase, string.digits, "!#%+-=_."]
+pool = "".join(classes)
+while True:
+    p = [secrets.choice(c) for c in classes] + [secrets.choice(pool) for _ in range(20)]
+    secrets.SystemRandom().shuffle(p)
+    if all(a != b for a, b in zip(p, p[1:])):
+        break
+print("".join(p), end="")' > "$WORK/pass" )
   python3 -c 'import json, sys; print(json.dumps({"username": sys.argv[1], "email": sys.argv[1] + "@example.com", "name": "Drill Admin", "pass": open(sys.argv[2]).read().strip()}))' "$user" "$WORK/pass" \
     | c -H "Content-Type: application/json" -d @- "$BASE/api/v1/users.register" > "$WORK/reg"
   [[ "$(jget success < "$WORK/reg")" == True ]] \
